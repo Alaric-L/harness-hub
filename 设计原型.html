@@ -1,0 +1,2013 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HarnessHub - 多 Harness 配置中枢</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F2F6FB; --surface:#FFFFFF; --surface-2:#F7FAFD; --surface-3:#EDF2F9;
+    --border:#DCE5F0; --border-soft:#E7EEF6;
+    --text:#16202E; --text-dim:#5A6B80; --text-faint:#94A4B9;
+    --accent:#2E6BEE; --accent-dim:#E8EFFE; --accent-text:#FFFFFF;
+    --on:#1E9E63; --off:#CBD5E3; --danger:#E14F4A; --warn:#D9910D;
+    --code-bg:#0F1A2B; --code-text:#BFDBFE;
+    --radius:10px; --radius-sm:6px;
+    --shadow-sm:0 1px 2px rgba(20,40,70,.06); --shadow-md:0 10px 28px rgba(20,40,70,.10);
+    --font-display:'Sora',sans-serif; --font-body:'Inter',sans-serif; --font-mono:'IBM Plex Mono',monospace;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{background:var(--bg); color:var(--text); font-family:var(--font-body); font-size:14px; overflow:hidden;}
+  button{font-family:inherit; cursor:pointer;}
+  input, select, textarea{font-family:inherit;}
+  button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible{outline:2px solid var(--accent); outline-offset:1px;}
+  ::-webkit-scrollbar{width:8px; height:8px;}
+  ::-webkit-scrollbar-thumb{background:#C7D3E2; border-radius:4px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+
+  .app{display:grid; grid-template-columns:236px 1fr; height:100vh;}
+
+  /* ---------- Sidebar ---------- */
+  .sidebar{background:var(--surface); border-right:1px solid var(--border); display:flex; flex-direction:column; padding:18px 12px;}
+  .brand{display:flex; align-items:center; gap:10px; padding:4px 8px 20px 8px;}
+  .brand-mark{width:30px; height:30px; border-radius:8px; background:var(--accent); display:flex; align-items:center; justify-content:center; font-family:var(--font-mono); font-weight:600; color:#fff; font-size:15px;}
+  .brand-name{font-family:var(--font-display); font-weight:700; font-size:15px; letter-spacing:.2px; color:var(--text);}
+  .brand-name span{color:var(--accent);}
+  .brand-sub{font-size:11px; color:var(--text-faint); margin-top:1px;}
+  .nav{display:flex; flex-direction:column; gap:2px; margin-bottom:18px;}
+  .nav-item{display:flex; align-items:center; gap:10px; background:none; border:none; color:var(--text-dim); text-align:left; padding:9px 10px; border-radius:var(--radius-sm); font-size:13.5px; font-weight:500; transition:.12s;}
+  .nav-item:hover{background:var(--surface-3); color:var(--text);}
+  .nav-item.active{background:var(--accent-dim); color:var(--accent);}
+  .nav-item .ic{width:16px; text-align:center; font-size:14px;}
+  .sidebar-divider{font-size:11px; text-transform:uppercase; letter-spacing:.6px; color:var(--text-faint); padding:0 10px; margin:6px 0 8px;}
+  .agent-list{display:flex; flex-direction:column; gap:1px; overflow-y:auto;}
+  .agent-row{display:flex; align-items:center; gap:9px; padding:7px 10px; border-radius:var(--radius-sm); background:none; border:none; color:var(--text-dim); font-size:12.5px; text-align:left; width:100%;}
+  .agent-row:hover{background:var(--surface-3); color:var(--text);}
+  .agent-row .name-mono{font-family:var(--font-mono); font-size:12px; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .sidebar-footer{margin-top:auto; padding-top:10px; border-top:1px solid var(--border-soft);}
+
+  /* ---------- Agent icons ---------- */
+  .aicon{display:inline-flex; align-items:center; justify-content:center; flex:none; vertical-align:middle;}
+  .aicon svg{width:100%; height:100%; display:block;}
+  .aicon img{width:100%; height:100%; display:block; object-fit:contain;}
+
+  /* ---------- Main ---------- */
+  .main{display:flex; flex-direction:column; min-width:0; height:100vh;}
+  .topbar{display:flex; align-items:center; gap:16px; padding:16px 24px; border-bottom:1px solid var(--border); flex-shrink:0; background:var(--surface);}
+  .topbar h1{font-family:var(--font-display); font-size:19px; font-weight:600;}
+  .topbar .sub{font-size:12.5px; color:var(--text-faint); margin-top:2px;}
+  .search-box{margin-left:auto; display:flex; align-items:center; gap:8px; background:var(--surface-3); border:1px solid var(--border); border-radius:var(--radius-sm); padding:7px 12px; width:260px;}
+  .search-box input{background:none; border:none; color:var(--text); font-size:13px; width:100%;}
+  .search-box input::placeholder{color:var(--text-faint);}
+  .search-box .ic{color:var(--text-faint); font-size:13px;}
+
+  .content-wrap{flex:1; overflow-y:auto; padding:22px 24px 40px;}
+  .view{display:none;}
+  .view.active{display:block;}
+
+  /* ---------- Section header / chips ---------- */
+  .section-header{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; gap:12px; flex-wrap:wrap;}
+  .chip-row{display:flex; gap:8px; flex-wrap:wrap;}
+  .chip{padding:6px 13px; border-radius:20px; background:var(--surface); border:1px solid var(--border); font-size:12.5px; color:var(--text-dim); transition:.12s;}
+  .chip:hover{color:var(--text); border-color:#B9C7DB;}
+  .chip.active{background:var(--accent-dim); border-color:var(--accent); color:var(--accent); font-weight:600;}
+  .header-actions{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
+
+  /* ---------- Count bar (AppCountBar) ---------- */
+  .count-bar{display:flex; align-items:center; gap:14px; border:1px solid var(--border); background:var(--surface); border-radius:var(--radius); padding:10px 16px; margin-bottom:14px; box-shadow:var(--shadow-sm); flex-wrap:wrap;}
+  .count-total{font-size:12.5px; font-weight:600; color:var(--text-dim); background:var(--surface-3); border-radius:20px; padding:5px 13px; white-space:nowrap;}
+  .count-badges{display:flex; gap:6px; flex-wrap:wrap; margin-left:auto;}
+  .count-badge{display:inline-flex; align-items:center; gap:6px; padding:5px 11px; border-radius:18px; border:1px solid var(--border); background:var(--surface-2); font-size:12px; color:var(--text-dim); transition:.12s;}
+  .count-badge b{font-size:12.5px; color:var(--text);}
+  .count-badge:hover{border-color:var(--accent); background:var(--accent-dim);}
+  .count-badge.all-on{background:var(--accent-dim); border-color:var(--accent);}
+  .count-badge.all-on b{color:var(--accent);}
+
+  /* ---------- Matrix table ---------- */
+  .matrix-wrap{border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; background:var(--surface); box-shadow:var(--shadow-sm);}
+  .matrix-scroll{overflow-x:auto;}
+  table.matrix{border-collapse:separate; border-spacing:0; min-width:100%;}
+  table.matrix th, table.matrix td{border-bottom:1px solid var(--border-soft);}
+  thead th{position:sticky; top:0; background:var(--surface-2); z-index:3; padding:14px 8px; font-weight:500; color:var(--text-dim); border-bottom:1px solid var(--border);}
+  th.col-name, td.col-name{position:sticky; left:0; background:var(--surface); z-index:2; padding:13px 16px 13px 26px; min-width:300px; border-right:1px solid var(--border-soft);}
+  thead th.col-name{z-index:4; background:var(--surface-2);}
+  th.col-agent{width:48px; text-align:center; padding:14px 8px;}
+  .agent-col-ic{display:inline-flex; opacity:.9; transition:.12s;}
+  th.col-agent:hover .agent-col-ic{opacity:1; transform:scale(1.12);}
+  td.col-agent{text-align:center; padding:10px 6px;}
+  td.col-actions{padding:10px 14px; text-align:right; white-space:nowrap;}
+  tr.row:hover td{background:#FAFCFF;}
+  tr.row:hover td.col-name{background:#F5F9FE;}
+  tr.row.dim{display:none;}
+
+  .item-title{display:flex; align-items:center; gap:8px; font-weight:600; font-size:13.5px; flex-wrap:wrap;}
+  .item-title .type-badge{font-family:var(--font-mono); font-size:9px; padding:2px 6px; border-radius:4px; background:var(--surface-3); color:var(--text-dim); letter-spacing:.4px; font-weight:500;}
+  .item-title .type-badge.mcp{color:#2E6BEE; background:#E8EFFE;}
+  .item-title .type-badge.skill{color:#1E9E63; background:#E6F7EE;}
+  .item-title .repo-badge{font-family:var(--font-mono); font-size:10px; padding:2px 7px; border-radius:4px; border:1px solid var(--border); color:var(--text-dim); font-weight:400;}
+  .item-title .upd-badge{font-size:10px; padding:2px 7px; border-radius:4px; background:#FEF6E7; color:#966A0B; border:1px solid #F3DFAE; font-weight:500;}
+  .item-desc{font-size:12px; color:var(--text-faint); margin-top:3px;}
+  .title-link{display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border:none; background:none; color:var(--text-faint); font-size:12px; border-radius:4px; transition:.12s; line-height:1; padding:0; flex-shrink:0; text-decoration:none;}
+  .title-link:hover{color:var(--accent); background:var(--accent-dim);}
+
+  .switch{position:relative; display:inline-block; width:32px; height:18px;}
+  .switch input{opacity:0; width:0; height:0; position:absolute;}
+  .switch .slider{position:absolute; inset:0; background:var(--off); border-radius:20px; transition:.15s; cursor:pointer;}
+  .switch .slider::before{content:''; position:absolute; width:13px; height:13px; left:2.5px; top:2.5px; background:#fff; border-radius:50%; transition:.15s; box-shadow:var(--shadow-sm);}
+  .switch input:checked + .slider{background:var(--accent);}
+  .switch input:checked + .slider::before{transform:translateX(14px);}
+
+  .btn{border:none; border-radius:var(--radius-sm); font-size:12.5px; font-weight:600; padding:8px 14px; transition:.12s;}
+  .btn-ghost{background:var(--surface); color:var(--text-dim); border:1px solid var(--border);}
+  .btn-ghost:hover{color:var(--text); border-color:#B9C7DB; background:var(--surface-3);}
+  .btn-primary{background:var(--accent); color:var(--accent-text);}
+  .btn-primary:hover{background:#255DD1;}
+  .btn-danger{background:#FDECEC; color:var(--danger); border:1px solid #F5C6C4;}
+  .btn-danger:hover{background:#FBD9D8;}
+  .btn-sm{padding:6px 11px; font-size:12px;}
+  .btn-icon{display:inline-flex; align-items:center; gap:6px;}
+  .row-actions{display:inline-flex; gap:4px; opacity:0; transition:.12s;}
+  tr.row:hover .row-actions{opacity:1;}
+
+  /* ---------- Detail panel ---------- */
+  .detail-panel{position:fixed; top:0; right:-440px; width:420px; height:100vh; background:var(--surface); border-left:1px solid var(--border); z-index:50; transition:right .2s ease; display:flex; flex-direction:column; box-shadow:-16px 0 40px rgba(20,40,70,.12);}
+  .detail-panel.open{right:0;}
+  .detail-head{padding:20px 20px 16px; border-bottom:1px solid var(--border-soft);}
+  .detail-head .close{float:right; background:none; border:none; color:var(--text-faint); font-size:18px;}
+  .detail-head h3{font-family:var(--font-display); font-size:16px; margin-bottom:4px;}
+  .detail-head p{font-size:12px; color:var(--text-faint);}
+  .detail-tabs{display:flex; gap:2px; padding:10px 16px 0; overflow-x:auto; border-bottom:1px solid var(--border-soft);}
+  .detail-tab{display:inline-flex; align-items:center; gap:7px; padding:8px 11px; font-size:12px; color:var(--text-dim); background:none; border:none; border-bottom:2px solid transparent; white-space:nowrap;}
+  .detail-tab.active{color:var(--text); border-color:var(--accent);}
+  .detail-body{padding:18px 20px; overflow-y:auto; flex:1;}
+  .detail-status{display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:5px 10px; border-radius:6px; margin-bottom:14px;}
+  .detail-status.on{background:#E6F7EE; color:var(--on);}
+  .detail-status.off{background:var(--surface-3); color:var(--text-faint);}
+  .detail-link{display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:600; color:var(--accent); text-decoration:none; padding:5px 11px; border:1px solid var(--border); border-radius:6px; background:var(--surface-2);}
+  .detail-link:hover{border-color:var(--accent); background:var(--accent-dim);}
+  .code-block{background:var(--code-bg); border-radius:var(--radius-sm); padding:14px; font-family:var(--font-mono); font-size:12px; line-height:1.6; color:var(--code-text); white-space:pre; overflow-x:auto;}
+  .detail-label{font-size:11.5px; color:var(--text-faint); margin:14px 0 8px;}
+  .detail-label:first-child{margin-top:0;}
+
+  /* ---------- Subtabs (Skills) ---------- */
+  .subtabs{display:inline-flex; gap:2px; background:var(--surface-3); border-radius:8px; padding:3px;}
+  .subtab{border:none; background:none; padding:7px 16px; border-radius:6px; font-size:13px; font-weight:500; color:var(--text-dim);}
+  .subtab.active{background:var(--surface); color:var(--text); box-shadow:var(--shadow-sm);}
+
+  /* ---------- Discovery (skill cards) ---------- */
+  .disc-toolbar{display:flex; gap:10px; align-items:center; margin-bottom:16px; flex-wrap:wrap;}
+  .disc-search{flex:1; min-width:220px; display:flex; align-items:center; gap:8px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-sm); padding:8px 12px;}
+  .disc-search input{border:none; background:none; width:100%; font-size:13px; color:var(--text);}
+  .disc-search input::placeholder{color:var(--text-faint);}
+  .disc-search .ic{color:var(--text-faint);}
+  .skill-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px;}
+  .skill-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px; display:flex; flex-direction:column; gap:8px; box-shadow:var(--shadow-sm); transition:.15s;}
+  .skill-card:hover{border-color:#B9C7DB; box-shadow:var(--shadow-md);}
+  .skill-card .sc-head{display:flex; align-items:flex-start; justify-content:space-between; gap:8px;}
+  .skill-card .sc-name{font-weight:600; font-size:13.5px; font-family:var(--font-mono);}
+  .skill-card .sc-badges{display:flex; gap:6px; flex-wrap:wrap; margin-top:4px;}
+  .skill-card .sc-badges .repo-badge{font-family:var(--font-mono); font-size:10px; padding:2px 7px; border-radius:4px; border:1px solid var(--border); color:var(--text-dim);}
+  .skill-card .sc-badges .installs{font-family:var(--font-mono); font-size:10px; padding:2px 7px; border-radius:4px; background:var(--surface-3); color:var(--text-dim);}
+  .skill-card .sc-desc{font-size:12px; color:var(--text-dim); line-height:1.55; flex:1;}
+  .skill-card .sc-foot{display:flex; gap:8px; padding-top:10px; border-top:1px solid var(--border-soft);}
+  .installed-badge{font-size:11px; font-weight:600; color:var(--on); background:#E6F7EE; border-radius:5px; padding:5px 10px;}
+
+  /* ---------- Prompts view ---------- */
+  .prompt-tabs{display:flex; align-items:center; gap:4px; border-bottom:1px solid var(--border); overflow-x:auto; margin-bottom:16px;}
+  .prompt-tab{display:flex; align-items:center; gap:8px; padding:11px 15px; background:none; border:none; border-bottom:2px solid transparent; color:var(--text-dim); font-size:13px; font-weight:500; white-space:nowrap;}
+  .prompt-tab:hover{color:var(--text);}
+  .prompt-tab.active{color:var(--text); border-color:var(--accent);}
+  .prompt-head{display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:14px; flex-wrap:wrap;}
+  .prompt-file{font-family:var(--font-mono); font-size:11.5px; padding:6px 11px; border-radius:6px; background:var(--surface-3); color:var(--text-dim); border:1px solid var(--border-soft);}
+  .prompt-list{display:flex; flex-direction:column; gap:10px;}
+  .prompt-card{display:flex; align-items:center; gap:14px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:15px 18px; box-shadow:var(--shadow-sm); transition:.15s;}
+  .prompt-card.on{border-color:#BFE3D2; background:#FBFEFC;}
+  .pc-main{flex:1; min-width:0;}
+  .pc-name{font-weight:600; font-size:13.5px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .pc-on-badge{font-size:10.5px; font-weight:600; color:var(--on); background:#E6F7EE; padding:2px 8px; border-radius:4px; font-family:var(--font-mono);}
+  .pc-desc{font-size:12.5px; color:var(--text-dim); margin-top:4px;}
+  .pc-meta{font-size:11px; color:var(--text-faint); margin-top:5px;}
+  .pc-actions{display:flex; gap:6px; flex-shrink:0;}
+  .empty-box{background:var(--surface); border:1px dashed var(--border); border-radius:var(--radius); padding:44px 20px; text-align:center; color:var(--text-faint);}
+  .empty-box h4{font-family:var(--font-display); font-size:15px; color:var(--text-dim); margin-bottom:6px;}
+  .empty-box p{font-size:12.5px; margin-bottom:14px;}
+
+  /* ---------- Agents management ---------- */
+  .agent-cards-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:14px;}
+  .agent-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px; box-shadow:var(--shadow-sm);}
+  .agent-card-head{display:flex; align-items:center; gap:12px; margin-bottom:14px;}
+  .agent-card-head .name{font-family:var(--font-display); font-weight:600; font-size:14.5px;}
+  .agent-card-head .dir-badge{font-family:var(--font-mono); font-size:10.5px; color:var(--text-faint); margin-top:2px;}
+  .path-rows{border:1px solid var(--border-soft); border-radius:var(--radius-sm); overflow:hidden; margin-bottom:14px;}
+  .path-row{display:flex; align-items:center; gap:10px; padding:8px 12px; font-size:11.5px; background:var(--surface-2);}
+  .path-row + .path-row{border-top:1px solid var(--border-soft);}
+  .path-row span{color:var(--text-faint); width:76px; flex-shrink:0;}
+  .path-row code{font-family:var(--font-mono); font-size:11px; color:var(--text-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .dir-override label{display:block; font-size:11.5px; font-weight:600; color:var(--text-dim); margin-bottom:6px;}
+  .dir-input-row{display:flex; gap:6px;}
+  .dir-input-row input{flex:1; min-width:0;}
+
+  /* ---------- Settings ---------- */
+  .settings-section{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px 22px; margin-bottom:16px; box-shadow:var(--shadow-sm);}
+  .settings-section h4{font-family:var(--font-display); font-size:14.5px; margin-bottom:4px;}
+  .settings-section .hint{font-size:12px; color:var(--text-faint); margin-bottom:14px;}
+  .io-buttons{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .io-btn{display:flex; flex-direction:column; align-items:center; gap:6px; padding:18px; border-radius:var(--radius-sm); border:1px solid var(--border); background:var(--surface-2); font-size:13px; font-weight:600; color:var(--text-dim); transition:.12s; text-align:center;}
+  .io-btn:hover{border-color:var(--accent); color:var(--accent); background:var(--accent-dim);}
+  .io-btn .io-ic{font-size:20px;}
+  .io-btn small{font-weight:400; font-size:11px; color:var(--text-faint);}
+  .toggle-row{display:flex; align-items:center; justify-content:space-between; padding:11px 0; border-bottom:1px solid var(--border-soft); gap:14px;}
+  .toggle-row:last-child{border-bottom:none;}
+  .toggle-row .t-label{font-size:13px; font-weight:500;}
+  .toggle-row .t-sub{font-size:11.5px; color:var(--text-faint); margin-top:2px;}
+  .radio-row{display:flex; gap:10px; flex-wrap:wrap;}
+  .radio-pill{display:inline-flex; align-items:center; gap:7px; padding:8px 14px; border-radius:8px; border:1px solid var(--border); background:var(--surface-2); font-size:12.5px; color:var(--text-dim);}
+  .radio-pill.active{border-color:var(--accent); color:var(--accent); background:var(--accent-dim); font-weight:600;}
+  .radio-pill input{accent-color:var(--accent);}
+
+  /* ---------- Modal ---------- */
+  .modal-overlay{position:fixed; inset:0; background:rgba(20,32,50,.35); backdrop-filter:blur(2px); display:none; align-items:center; justify-content:center; z-index:100;}
+  .modal-overlay.open{display:flex;}
+  .modal{width:420px; max-height:88vh; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:22px; box-shadow:var(--shadow-md); display:flex; flex-direction:column;}
+  .modal-lg{width:600px;}
+  .modal h3{font-family:var(--font-display); font-size:16px; margin-bottom:4px;}
+  .modal .modal-sub{font-size:12.5px; color:var(--text-faint); margin-bottom:16px;}
+  .modal-scroll{overflow-y:auto; flex:1; min-height:0; padding-right:4px;}
+  .target-list{display:flex; flex-direction:column; gap:2px; margin-bottom:14px; max-height:260px; overflow-y:auto;}
+  .target-item{display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:var(--radius-sm); cursor:pointer;}
+  .target-item:hover{background:var(--surface-3);}
+  .target-item input{accent-color:var(--accent); width:15px; height:15px; flex-shrink:0;}
+  .target-item .name{font-size:13px; flex:1;}
+  .target-item .t-meta{font-size:11px; color:var(--text-faint);}
+  .warn-box{display:flex; gap:9px; background:#FEF6E7; border:1px solid #F3DFAE; border-radius:var(--radius-sm); padding:11px 12px; font-size:11.5px; color:#966A0B; margin-bottom:16px; line-height:1.5;}
+  .info-box{display:flex; gap:9px; background:#EAF2FE; border:1px solid #C7DAFC; border-radius:var(--radius-sm); padding:11px 12px; font-size:11.5px; color:#3D5A96; margin-bottom:16px; line-height:1.5;}
+
+  /* ---------- Form fields ---------- */
+  .field-label{display:block; font-size:12px; font-weight:600; color:var(--text-dim); margin:14px 0 6px;}
+  .modal .field-label:first-child, .modal-scroll .field-label:first-child{margin-top:0;}
+  .field-label .req{color:var(--danger); font-style:normal; margin-left:2px;}
+  .field-hint{font-size:11px; color:var(--text-faint); margin-top:4px;}
+  .field-input{width:100%; padding:9px 12px; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--surface-2); color:var(--text); font-size:13px;}
+  .field-input:focus{border-color:var(--accent); background:var(--surface);}
+  .field-input.mono{font-family:var(--font-mono); font-size:12.5px;}
+  .field-err{font-size:11px; color:var(--danger); margin-top:4px; min-height:14px;}
+  .form-grid-2{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  textarea.field-input{min-height:96px; font-family:var(--font-mono); font-size:12.5px; resize:vertical; line-height:1.6;}
+  textarea.code-editor{width:100%; min-height:170px; background:#0F1A2B; border:1px solid #1D2F4A; border-radius:var(--radius-sm); color:#BFDBFE; font-family:var(--font-mono); font-size:12.5px; line-height:1.6; padding:14px; resize:vertical;}
+  textarea.code-editor:focus{outline:none; border-color:#3D6BC7;}
+  textarea.code-editor::placeholder{color:#51708F;}
+  .json-status{font-size:11.5px; margin-top:6px; min-height:16px; font-family:var(--font-mono);}
+  .json-status.ok{color:var(--on);}
+  .json-status.err{color:var(--danger);}
+  .fold-toggle{display:flex; align-items:center; gap:6px; background:none; border:none; font-size:12.5px; font-weight:500; color:var(--text-dim); margin:16px 0 0; padding:0;}
+  .fold-toggle:hover{color:var(--text);}
+  .link-btn{background:none; border:none; color:var(--accent); font-size:12.5px; font-weight:500; padding:0;}
+  .link-btn:hover{text-decoration:underline;}
+  .json-edit-head{display:flex; align-items:center; justify-content:space-between; margin-top:16px;}
+  .json-edit-head .field-label{margin:0;}
+  .app-check-row{display:flex; gap:10px; flex-wrap:wrap; padding:2px 0;}
+  .app-check{display:inline-flex; align-items:center; gap:7px; cursor:pointer; padding:6px 10px; border:1px solid var(--border); border-radius:8px; background:var(--surface-2); font-size:12.5px; color:var(--text-dim); transition:.12s;}
+  .app-check:hover{border-color:#B9C7DB;}
+  .app-check input{accent-color:var(--accent); width:14px; height:14px;}
+
+  /* ---------- MCP wizard ---------- */
+  .type-cards{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:6px;}
+  .type-card{border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--surface-2); padding:11px 10px; text-align:left; transition:.12s;}
+  .type-card:hover{border-color:#B9C7DB;}
+  .type-card.active{border-color:var(--accent); background:var(--accent-dim);}
+  .type-card b{display:block; font-family:var(--font-mono); font-size:12.5px; margin-bottom:4px; color:var(--text);}
+  .type-card span{font-size:10.5px; color:var(--text-faint); line-height:1.4; display:block;}
+  .type-card.active b{color:var(--accent);}
+
+  /* ---------- Repo manager ---------- */
+  .repo-item{display:flex; align-items:center; gap:12px; padding:12px 14px; border:1px solid var(--border-soft); border-radius:var(--radius-sm); background:var(--surface-2); margin-bottom:8px;}
+  .repo-item .r-name{font-family:var(--font-mono); font-size:12.5px; font-weight:500;}
+  .repo-item .r-meta{font-size:11px; color:var(--text-faint); margin-top:2px;}
+  .repo-item .r-count{font-size:11px; color:var(--accent); background:var(--accent-dim); padding:2px 8px; border-radius:10px; white-space:nowrap;}
+
+  /* ---------- Backups ---------- */
+  .backup-item{border:1px solid var(--border); border-radius:var(--radius-sm); padding:13px 15px; background:var(--surface-2); margin-bottom:10px;}
+  .backup-item .b-top{display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; gap:10px;}
+  .backup-item .b-name{font-weight:600; font-size:13px; font-family:var(--font-mono);}
+  .backup-item .b-dir{font-size:10.5px; color:var(--text-faint); font-family:var(--font-mono); margin-left:8px;}
+  .backup-item .b-path{font-family:var(--font-mono); font-size:10.5px; color:var(--text-faint); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-bottom:9px;}
+  .backup-item .b-actions{display:flex; gap:8px;}
+
+  /* ---------- Import skills dialog ---------- */
+  .unmanaged-item{display:flex; gap:12px; padding:12px; border:1px solid var(--border); border-radius:var(--radius-sm); margin-bottom:8px; align-items:flex-start; background:var(--surface-2);}
+  .unmanaged-item input{margin-top:3px; accent-color:var(--accent); width:15px; height:15px; flex-shrink:0;}
+  .mini-toggles{display:flex; gap:4px; margin-top:8px; flex-wrap:wrap;}
+  .mini-toggle{width:26px; height:26px; border-radius:6px; border:1px solid var(--border); background:var(--surface); display:inline-flex; align-items:center; justify-content:center; opacity:.35; transition:.12s; padding:4px;}
+  .mini-toggle:hover{opacity:.75;}
+  .mini-toggle.on{opacity:1; border-color:#B9C7DB; background:var(--accent-dim);}
+
+  /* ---------- Dashboard ---------- */
+  .stat-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px;}
+  .stat-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px; box-shadow:var(--shadow-sm);}
+  .stat-card .num{font-family:var(--font-display); font-size:28px; font-weight:700;}
+  .stat-card .lbl{font-size:12px; color:var(--text-faint); margin-top:4px;}
+  .stat-card .num.accent{color:var(--accent);}
+  .dash-section{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px; margin-bottom:16px; box-shadow:var(--shadow-sm);}
+  .dash-section h4{font-family:var(--font-display); font-size:14.5px; margin-bottom:14px;}
+  .agent-grid-mini{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px;}
+  @media (max-width:1500px){ .agent-grid-mini{grid-template-columns:repeat(3,minmax(0,1fr));} }
+  .mini-agent-card{border:1px solid var(--border-soft); border-radius:var(--radius); padding:18px 20px; display:flex; align-items:center; gap:16px; background:var(--surface-2);}
+  .mini-agent-card .m-name{font-size:14px; font-weight:600;}
+  .mini-agent-card .m-meta{font-size:12px; color:var(--text-faint); margin-top:4px; font-family:var(--font-mono);}
+
+  /* ---------- Toast ---------- */
+  .toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--text); color:#fff; padding:11px 18px; border-radius:var(--radius-sm); font-size:13px; opacity:0; pointer-events:none; transition:.2s; z-index:200; display:flex; align-items:center; gap:8px; box-shadow:var(--shadow-md); max-width:70vw;}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+  .toast .dot-ok{width:7px; height:7px; border-radius:50%; background:#4ADE80; flex-shrink:0;}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- ===== Sidebar ===== -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">⌘</div>
+      <div>
+        <div class="brand-name">Harness<span>Hub</span></div>
+        <div class="brand-sub">多 Harness 配置中枢</div>
+      </div>
+    </div>
+    <nav class="nav">
+      <button class="nav-item active" data-view="dashboard"><span class="ic">◆</span>Dashboard</button>
+      <button class="nav-item" data-view="mcp"><span class="ic">⚙</span>MCP 服务</button>
+      <button class="nav-item" data-view="skills"><span class="ic">▤</span>Skills</button>
+      <button class="nav-item" data-view="prompts"><span class="ic">✎</span>提示词</button>
+      <button class="nav-item" data-view="agents"><span class="ic">▦</span>Harness 管理</button>
+    </nav>
+    <div class="sidebar-divider">已接入 Harness</div>
+    <div class="agent-list" id="sidebar-agent-list"></div>
+    <div class="sidebar-footer">
+      <button class="nav-item" data-view="settings"><span class="ic">☰</span>设置</button>
+    </div>
+  </aside>
+
+  <!-- ===== Main ===== -->
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h1 id="view-title">Dashboard</h1>
+        <div class="sub" id="view-sub">7 个 harness 的配置总览</div>
+      </div>
+      <div class="search-box" id="search-box" style="display:none;">
+        <span class="ic">⌕</span>
+        <input type="text" id="search-input" placeholder="搜索名称或描述…">
+      </div>
+    </header>
+
+    <div class="content-wrap">
+
+      <!-- ===== Dashboard ===== -->
+      <section class="view active" id="view-dashboard">
+        <div class="stat-grid">
+          <div class="stat-card"><div class="num accent">7</div><div class="lbl">已接入 Harness</div></div>
+          <div class="stat-card"><div class="num" id="stat-mcp">0</div><div class="lbl">MCP 服务总数</div></div>
+          <div class="stat-card"><div class="num" id="stat-skill">0</div><div class="lbl">已安装 Skills</div></div>
+          <div class="stat-card"><div class="num" id="stat-prompt">0</div><div class="lbl">激活中的提示词</div></div>
+        </div>
+        <div class="dash-section">
+          <h4>Harness 概览</h4>
+          <div class="agent-grid-mini" id="dash-agent-grid"></div>
+        </div>
+      </section>
+
+      <!-- ===== MCP ===== -->
+      <section class="view" id="view-mcp">
+        <div class="section-header">
+          <div class="disc-search" style="flex:1; min-width:240px; max-width:440px;">
+            <span class="ic">⌕</span>
+            <input type="text" id="mcp-search-input" placeholder="搜索：名称 / 描述 / 标签 / 命令…">
+          </div>
+          <div class="header-actions">
+            <button class="btn btn-ghost" id="btn-import-mcp">↓ 从各 harness 导入</button>
+            <button class="btn btn-primary btn-icon" id="btn-add-mcp">+ 新增 MCP</button>
+          </div>
+        </div>
+        <div id="mcp-countbar"></div>
+        <div class="matrix-wrap">
+          <div class="matrix-scroll">
+            <table class="matrix" id="mcp-table"></table>
+          </div>
+        </div>
+        <div class="empty-box" id="mcp-empty" style="display:none;">
+          <h4>没有匹配的 MCP</h4>
+          <p>尝试更换关键词，或清空搜索框查看全部 MCP</p>
+        </div>
+      </section>
+
+      <!-- ===== Skills ===== -->
+      <section class="view" id="view-skills">
+        <div class="section-header">
+          <div class="subtabs">
+            <button class="subtab active" data-skills-tab="installed">已安装</button>
+            <button class="subtab" data-skills-tab="discovery">发现 Skills</button>
+          </div>
+          <div class="header-actions" id="skills-installed-actions">
+            <button class="btn btn-ghost" id="btn-skill-check-updates">⟳ 检查更新</button>
+            <button class="btn btn-ghost" id="btn-skill-backups">⏱ 从备份恢复</button>
+            <button class="btn btn-ghost" id="btn-skill-zip">🗜 从 ZIP 安装</button>
+            <button class="btn btn-ghost" id="btn-skill-import">↓ 从 harness 导入</button>
+          </div>
+          <div class="header-actions" id="skills-discovery-actions" style="display:none;">
+            <button class="btn btn-ghost" id="btn-skill-refresh">⟳ 刷新</button>
+            <button class="btn btn-ghost" id="btn-repo-manager">☰ 仓库管理</button>
+          </div>
+        </div>
+
+        <!-- 已安装 -->
+        <div id="skills-installed-wrap">
+          <div id="skills-countbar"></div>
+          <div class="matrix-wrap">
+            <div class="matrix-scroll">
+              <table class="matrix" id="skills-table"></table>
+            </div>
+          </div>
+        </div>
+
+        <!-- 发现 -->
+        <div id="skills-discovery-wrap" style="display:none;">
+          <div class="disc-toolbar">
+            <div class="subtabs">
+              <button class="subtab active" data-disc-source="repos">仓库</button>
+              <button class="subtab" data-disc-source="skillssh">skills.sh</button>
+            </div>
+            <div class="disc-search">
+              <span class="ic">⌕</span>
+              <input type="text" id="disc-search-input" placeholder="搜索 Skill 名称或仓库…">
+            </div>
+            <select class="field-input" id="disc-repo-filter" style="width:200px;">
+              <option value="all">全部仓库</option>
+            </select>
+            <select class="field-input" id="disc-status-filter" style="width:130px;">
+              <option value="all">全部状态</option>
+              <option value="uninstalled">未安装</option>
+              <option value="installed">已安装</option>
+            </select>
+          </div>
+          <div class="skill-grid" id="skill-grid"></div>
+        </div>
+      </section>
+
+      <!-- ===== Prompts ===== -->
+      <section class="view" id="view-prompts">
+        <div class="prompt-tabs" id="prompt-tabs"></div>
+        <div class="prompt-head">
+          <span class="prompt-file" id="prompt-file"></span>
+          <button class="btn btn-primary btn-icon" id="btn-add-prompt">+ 新增提示词</button>
+        </div>
+        <div class="prompt-list" id="prompt-list"></div>
+      </section>
+
+      <!-- ===== Agents management ===== -->
+      <section class="view" id="view-agents">
+        <div style="margin-bottom:14px; font-size:12.5px; color:var(--text-faint);">
+          各 harness 的配置落点与目录覆盖。留空使用默认路径；配置目录覆盖后，MCP / Skills / 提示词均写入新目录。
+        </div>
+        <div class="agent-cards-grid" id="agent-cards"></div>
+      </section>
+
+      <!-- ===== Settings ===== -->
+      <section class="view" id="view-settings">
+        <div class="settings-section">
+          <h4>数据导入导出</h4>
+          <p class="hint">将 harness-manager 的全部数据（MCP 库、Skills 清单、提示词库、目录配置）导出为单个 JSON 文件，或从备份文件恢复。</p>
+          <div class="io-buttons">
+            <button class="io-btn" id="btn-import-data">
+              <span class="io-ic">📂</span>
+              导入配置文件
+              <small>从导出的 JSON 备份恢复，导入前自动创建当前数据快照</small>
+            </button>
+            <button class="io-btn" id="btn-export-data">
+              <span class="io-ic">💾</span>
+              导出全部配置
+              <small>导出 MCP / Skills / 提示词库与全部设置</small>
+            </button>
+          </div>
+        </div>
+        <div class="settings-section">
+          <h4>安全与备份</h4>
+          <p class="hint">写入各 harness 配置文件前的保护策略。</p>
+          <div class="toggle-row">
+            <div>
+              <div class="t-label">写入前自动备份</div>
+              <div class="t-sub">每次修改 harness 配置文件（MCP 开关、提示词激活）前，先备份原文件到本地历史目录</div>
+            </div>
+            <label class="switch"><input type="checkbox" checked><span class="slider"></span></label>
+          </div>
+          <div class="toggle-row">
+            <div>
+              <div class="t-label">Skill 卸载前备份</div>
+              <div class="t-sub">卸载 Skill 时在「从备份恢复」列表中保留一份副本</div>
+            </div>
+            <label class="switch"><input type="checkbox" checked><span class="slider"></span></label>
+          </div>
+          <div class="toggle-row">
+            <div>
+              <div class="t-label">原子写入</div>
+              <div class="t-sub">先写临时文件校验格式合法，再替换原文件，避免写坏导致 harness 无法启动</div>
+            </div>
+            <label class="switch"><input type="checkbox" checked disabled><span class="slider"></span></label>
+          </div>
+        </div>
+        <div class="settings-section">
+          <h4>Skill 同步方式</h4>
+          <p class="hint">将中央 Skill 库分发到各 harness skills 目录的方式。</p>
+          <div class="radio-row" id="sync-method-row">
+            <label class="radio-pill active"><input type="radio" name="syncm" checked>自动（优先符号链接，失败回退复制）</label>
+            <label class="radio-pill"><input type="radio" name="syncm">仅符号链接</label>
+            <label class="radio-pill"><input type="radio" name="syncm">仅复制</label>
+          </div>
+        </div>
+        <div class="settings-section">
+          <h4>外观</h4>
+          <p class="hint">当前原型仅提供浅色主题。</p>
+          <div class="radio-row">
+            <label class="radio-pill active"><input type="radio" name="theme" checked>浅色</label>
+            <label class="radio-pill" style="opacity:.5;"><input type="radio" name="theme" disabled>深色（开发中）</label>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<!-- ===== Detail Panel ===== -->
+<aside class="detail-panel" id="detail-panel">
+  <div class="detail-head">
+    <button class="close" id="detail-close">×</button>
+    <h3 id="detail-title">filesystem</h3>
+    <p id="detail-sub">本地文件读写访问 · MCP 服务</p>
+  </div>
+  <div class="detail-tabs" id="detail-tabs"></div>
+  <div class="detail-body" id="detail-body"></div>
+</aside>
+
+<!-- ===== MCP 表单 Modal ===== -->
+<div class="modal-overlay" id="modal-mcp-form">
+  <div class="modal modal-lg">
+    <h3 id="mf-title">新增 MCP</h3>
+    <p class="modal-sub">在统一库中创建一条 MCP 配置；勾选的 harness 将立即写入各自配置文件</p>
+    <div class="modal-scroll">
+      <div id="mf-presets-block">
+        <label class="field-label">从预设开始（可选）</label>
+        <div class="chip-row" id="mf-preset-chips"></div>
+      </div>
+      <div class="form-grid-2">
+        <div>
+          <label class="field-label">ID <i class="req">*</i></label>
+          <input class="field-input mono" id="mf-id" placeholder="例如 playwright" spellcheck="false">
+          <div class="field-err" id="mf-id-err"></div>
+        </div>
+        <div>
+          <label class="field-label">名称</label>
+          <input class="field-input" id="mf-name" placeholder="留空则使用 ID">
+        </div>
+      </div>
+      <label class="field-label">启用到以下 harness</label>
+      <div class="app-check-row" id="mf-apps"></div>
+      <button class="fold-toggle" id="mf-meta-toggle">▸ 附加信息（描述 / 标签 / 链接）</button>
+      <div id="mf-meta" style="display:none;">
+        <label class="field-label">描述</label>
+        <input class="field-input" id="mf-desc" placeholder="简要说明这个 MCP 的用途">
+        <label class="field-label">标签（逗号分隔）</label>
+        <input class="field-input" id="mf-tags" placeholder="例如 自动化, 代码">
+        <div class="form-grid-2" style="margin-top:4px;">
+          <div>
+            <label class="field-label">主页链接</label>
+            <input class="field-input mono" id="mf-homepage" placeholder="https://example.com" spellcheck="false">
+          </div>
+          <div>
+            <label class="field-label">文档链接</label>
+            <input class="field-input mono" id="mf-docs" placeholder="https://example.com/docs" spellcheck="false">
+          </div>
+        </div>
+      </div>
+      <div class="json-edit-head">
+        <label class="field-label">配置 JSON <i class="req">*</i></label>
+        <button class="link-btn" id="mf-wizard-btn">使用向导生成</button>
+      </div>
+      <textarea class="code-editor" id="mf-json" spellcheck="false" placeholder='{ "type": "stdio", "command": "npx", "args": ["-y", "…"] }'></textarea>
+      <div class="json-status" id="mf-json-status"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="mf-cancel">取消</button>
+      <button class="btn btn-primary" id="mf-save">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MCP 配置向导 Modal ===== -->
+<div class="modal-overlay" id="modal-mcp-wizard">
+  <div class="modal modal-lg">
+    <h3>MCP 配置向导</h3>
+    <p class="modal-sub">可视化填写参数，生成标准配置 JSON 后回填到表单</p>
+    <div class="modal-scroll">
+      <label class="field-label">连接类型 <i class="req">*</i></label>
+      <div class="type-cards" id="wz-types">
+        <button class="type-card active" data-type="stdio"><b>stdio</b><span>本地命令行进程通信</span></button>
+        <button class="type-card" data-type="http"><b>http</b><span>HTTP 远程服务</span></button>
+        <button class="type-card" data-type="sse"><b>sse</b><span>SSE 长连接远程服务</span></button>
+      </div>
+      <div id="wz-stdio-fields">
+        <label class="field-label">命令 <i class="req">*</i></label>
+        <input class="field-input mono" id="wz-command" placeholder="例如 npx">
+        <label class="field-label">参数（每行一个）</label>
+        <textarea class="field-input" id="wz-args" placeholder="-y&#10;@playwright/mcp@latest"></textarea>
+        <label class="field-label">环境变量（每行 KEY=VALUE）</label>
+        <textarea class="field-input" id="wz-env" placeholder="API_KEY=xxx"></textarea>
+      </div>
+      <div id="wz-remote-fields" style="display:none;">
+        <label class="field-label">服务地址 URL <i class="req">*</i></label>
+        <input class="field-input mono" id="wz-url" placeholder="例如 https://mcp.example.com/mcp">
+        <label class="field-label">请求头（每行 KEY: VALUE）</label>
+        <textarea class="field-input" id="wz-headers" placeholder="Authorization: Bearer xxx"></textarea>
+      </div>
+      <label class="field-label">生成预览</label>
+      <div class="code-block" id="wz-preview" style="margin-bottom:0;"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="wz-cancel">取消</button>
+      <button class="btn btn-primary" id="wz-apply">应用到表单</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 通用确认 Modal ===== -->
+<div class="modal-overlay" id="modal-confirm">
+  <div class="modal" style="width:400px;">
+    <h3 id="cf-title">确认</h3>
+    <p class="modal-sub" id="cf-msg" style="margin-bottom:18px;"></p>
+    <div class="modal-actions" style="margin-top:0;">
+      <button class="btn btn-ghost" id="cf-cancel">取消</button>
+      <button class="btn btn-primary" id="cf-ok">确认</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 仓库管理 Modal ===== -->
+<div class="modal-overlay" id="modal-repo">
+  <div class="modal modal-lg">
+    <h3>Skill 仓库管理</h3>
+    <p class="modal-sub">添加 GitHub 仓库作为 Skill 来源，发现页将列出仓库内全部 Skills</p>
+    <div class="modal-scroll">
+      <div class="form-grid-2">
+        <div>
+          <label class="field-label">仓库 URL <i class="req">*</i></label>
+          <input class="field-input mono" id="repo-url" placeholder="https://github.com/obra/superpowers">
+        </div>
+        <div>
+          <label class="field-label">分支</label>
+          <input class="field-input mono" id="repo-branch" placeholder="main">
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-icon" id="repo-add" style="margin-top:12px;">+ 添加仓库</button>
+      <label class="field-label">已添加仓库</label>
+      <div id="repo-list"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="repo-close">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Skill 备份恢复 Modal ===== -->
+<div class="modal-overlay" id="modal-backups">
+  <div class="modal modal-lg">
+    <h3>从备份恢复 Skill</h3>
+    <p class="modal-sub">卸载 Skill 时自动保留的备份，可恢复或彻底删除</p>
+    <div class="modal-scroll" id="backup-list"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="backups-close">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 从 harness 导入 Skills Modal ===== -->
+<div class="modal-overlay" id="modal-import-skills">
+  <div class="modal modal-lg">
+    <h3>从 harness 导入 Skills</h3>
+    <p class="modal-sub">扫描到以下未纳管的 Skill（已存在于 harness 目录但不在中央库中），选择要导入的条目及其启用范围</p>
+    <div class="modal-scroll" id="unmanaged-list"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="import-skills-close">取消</button>
+      <button class="btn btn-primary" id="import-skills-confirm">导入选中项</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 提示词表单 Modal ===== -->
+<div class="modal-overlay" id="modal-prompt-form">
+  <div class="modal modal-lg">
+    <h3 id="pf-title">新增提示词</h3>
+    <p class="modal-sub" id="pf-sub"></p>
+    <div class="modal-scroll">
+      <div class="form-grid-2">
+        <div>
+          <label class="field-label">名称 <i class="req">*</i></label>
+          <input class="field-input" id="pf-name" placeholder="例如 中文·全栈工程师">
+        </div>
+        <div>
+          <label class="field-label">描述</label>
+          <input class="field-input" id="pf-desc" placeholder="简要说明用途">
+        </div>
+      </div>
+      <label class="field-label">内容（Markdown）</label>
+      <textarea class="field-input" id="pf-content" style="min-height:220px;" placeholder="激活后，该内容将写入当前 harness 的指令文件…"></textarea>
+      <div class="field-hint">保存后条目为未激活状态；在列表中开启开关才会写入指令文件。</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="pf-cancel">取消</button>
+      <button class="btn btn-primary" id="pf-save">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 复制提示词到其他 harness Modal ===== -->
+<div class="modal-overlay" id="modal-copy">
+  <div class="modal">
+    <h3>复制提示词到其他 harness</h3>
+    <p class="modal-sub" id="cp-sub"></p>
+    <div class="target-list" id="cp-targets"></div>
+    <div class="info-box">ℹ 复制后的条目为<b>未激活</b>状态：不会影响目标 harness 当前激活的提示词与指令文件。同名条目将自动追加序号。</div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="cp-cancel">取消</button>
+      <button class="btn btn-primary" id="cp-confirm">复制</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span class="dot-ok"></span><span id="toast-text">已完成</span></div>
+
+<script>
+/* ================= Icons (注入自 cc-Switch 图标库) ================= */
+const ICONS = {
+  dsh: `<svg height="1em" style="flex:none;line-height:1" viewBox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><title>DeepSeek</title><path d="M23.748 4.482c-.254-.124-.364.113-.512.234-.051.039-.094.09-.137.136-.372.397-.806.657-1.373.626-.829-.046-1.537.214-2.163.848-.133-.782-.575-1.248-1.247-1.548-.352-.156-.708-.311-.955-.65-.172-.241-.219-.51-.305-.774-.055-.16-.11-.323-.293-.35-.2-.031-.278.136-.356.276-.313.572-.434 1.202-.422 1.84.027 1.436.633 2.58 1.838 3.393.137.093.172.187.129.323-.082.28-.18.552-.266.833-.055.179-.137.217-.329.14a5.526 5.526 0 01-1.736-1.18c-.857-.828-1.631-1.742-2.597-2.458a11.365 11.365 0 00-.689-.471c-.985-.957.13-1.743.388-1.836.27-.098.093-.432-.779-.428-.872.004-1.67.295-2.687.684a3.055 3.055 0 01-.465.137 9.597 9.597 0 00-2.883-.102c-1.885.21-3.39 1.102-4.497 2.623C.082 8.606-.231 10.684.152 12.85c.403 2.284 1.569 4.175 3.36 5.653 1.858 1.533 3.997 2.284 6.438 2.14 1.482-.085 3.133-.284 4.994-1.86.47.234.962.327 1.78.397.63.059 1.236-.03 1.705-.128.735-.156.684-.837.419-.961-2.155-1.004-1.682-.595-2.113-.926 1.096-1.296 2.746-2.642 3.392-7.003.05-.347.007-.565 0-.845-.004-.17.035-.237.23-.256a4.173 4.173 0 001.545-.475c1.396-.763 1.96-2.015 2.093-3.517.02-.23-.004-.467-.247-.588zM11.581 18c-2.089-1.642-3.102-2.183-3.52-2.16-.392.024-.321.471-.235.763.09.288.207.486.371.739.114.167.192.416-.113.603-.673.416-1.842-.14-1.897-.167-1.361-.802-2.5-1.86-3.301-3.307-.774-1.393-1.224-2.887-1.298-4.482-.02-.386.093-.522.477-.592a4.696 4.696 0 011.529-.039c2.132.312 3.946 1.265 5.468 2.774.868.86 1.525 1.887 2.202 2.891.72 1.066 1.494 2.082 2.48 2.914.348.292.625.514.891.677-.802.09-2.14.11-3.054-.614zm1-6.44a.306.306 0 01.415-.287.302.302 0 01.2.288.306.306 0 01-.31.307.303.303 0 01-.304-.308zm3.11 1.596c-.2.081-.399.151-.59.16a1.245 1.245 0 01-.798-.254c-.274-.23-.47-.358-.552-.758a1.73 1.73 0 01.016-.588c.07-.327-.008-.537-.239-.727-.187-.156-.426-.199-.688-.199a.559.559 0 01-.254-.078c-.11-.054-.2-.19-.114-.358.028-.054.16-.186.192-.21.356-.202.767-.136 1.146.016.352.144.618.408 1.001.782.391.451.462.576.685.914.176.265.336.537.445.848.067.195-.019.354-.25.452z" fill="#4D6BFE"></path></svg>`,
+  claude: `<svg height="1em" style="flex:none;line-height:1" viewBox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><title>Claude</title><path d="M4.709 15.955l4.72-2.647.08-.23-.08-.128H9.2l-.79-.048-2.698-.073-2.339-.097-2.266-.122-.571-.121L0 11.784l.055-.352.48-.321.686.06 1.52.103 2.278.158 1.652.097 2.449.255h.389l.055-.157-.134-.098-.103-.097-2.358-1.596-2.552-1.688-1.336-.972-.724-.491-.364-.462-.158-1.008.656-.722.881.06.225.061.893.686 1.908 1.476 2.491 1.833.365.304.145-.103.019-.073-.164-.274-1.355-2.446-1.446-2.49-.644-1.032-.17-.619a2.97 2.97 0 01-.104-.729L6.283.134 6.696 0l.996.134.42.364.62 1.414 1.002 2.229 1.555 3.03.456.898.243.832.091.255h.158V9.01l.128-1.706.237-2.095.23-2.695.08-.76.376-.91.747-.492.584.28.48.685-.067.444-.286 1.851-.559 2.903-.364 1.942h.212l.243-.242.985-1.306 1.652-2.064.73-.82.85-.904.547-.431h1.033l.76 1.129-.34 1.166-1.064 1.347-.881 1.142-1.264 1.7-.79 1.36.073.11.188-.02 2.856-.606 1.543-.28 1.841-.315.833.388.091.395-.328.807-1.969.486-2.309.462-3.439.813-.042.03.049.061 1.549.146.662.036h1.622l3.02.225.79.522.474.638-.079.485-1.215.62-1.64-.389-3.829-.91-1.312-.329h-.182v.11l1.093 1.068 2.006 1.81 2.509 2.33.127.578-.322.455-.34-.049-2.205-1.657-.851-.747-1.926-1.62h-.128v.17l.444.649 2.345 3.521.122 1.08-.17.353-.608.213-.668-.122-1.374-1.925-1.415-2.167-1.143-1.943-.14.08-.674 7.254-.316.37-.729.28-.607-.461-.322-.747.322-1.476.389-1.924.315-1.53.286-1.9.17-.632-.012-.042-.14.018-1.434 1.967-2.18 2.945-1.726 1.845-.414.164-.717-.37.067-.662.401-.589 2.388-3.036 1.44-1.882.93-1.086-.006-.158h-.055L4.132 18.56l-1.13.146-.487-.456.061-.746.231-.243 1.908-1.312-.006.006z" fill="#D97757" fill-rule="nonzero"></path></svg>`,
+  codex: `<svg fill="currentColor" fill-rule="evenodd" height="1em" style="flex:none;line-height:1" viewBox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><title>OpenAI</title><path d="M21.55 10.004a5.416 5.416 0 00-.478-4.501c-1.217-2.09-3.662-3.166-6.05-2.66A5.59 5.59 0 0010.831 1C8.39.995 6.224 2.546 5.473 4.838A5.553 5.553 0 001.76 7.496a5.487 5.487 0 00.691 6.5 5.416 5.416 0 00.477 4.502c1.217 2.09 3.662 3.165 6.05 2.66A5.586 5.586 0 0013.168 23c2.443.006 4.61-1.546 5.361-3.84a5.553 5.553 0 003.715-2.66 5.488 5.488 0 00-.693-6.497v.001zm-8.381 11.558a4.199 4.199 0 01-2.675-.954c.034-.018.093-.05.132-.074l4.44-2.53a.71.71 0 00.364-.623v-6.176l1.877 1.069c.02.01.033.029.036.05v5.115c-.003 2.274-1.87 4.118-4.174 4.123zM4.192 17.78a4.059 4.059 0 01-.498-2.763c.032.02.09.055.131.078l4.44 2.53c.225.13.504.13.73 0l5.42-3.088v2.138a.068.068 0 01-.027.057L9.9 19.288c-1.999 1.136-4.552.46-5.707-1.51h-.001zM3.023 8.216A4.15 4.15 0 015.198 6.41l-.002.151v5.06a.711.711 0 00.364.624l5.42 3.087-1.876 1.07a.067.067 0 01-.063.005l-4.489-2.559c-1.995-1.14-2.679-3.658-1.53-5.63h.001zm15.417 3.54l-5.42-3.088L14.896 7.6a.067.067 0 01.063-.006l4.489 2.557c1.998 1.14 2.683 3.662 1.529 5.633a4.163 4.163 0 01-2.174 1.807V12.38a.71.71 0 00-.363-.623zm1.867-2.773a6.04 6.04 0 00-.132-.078l-4.44-2.53a.731.731 0 00-.729 0l-5.42 3.088V7.325a.068.068 0 01.027-.057L14.1 4.713c2-1.137 4.555-.46 5.707 1.513.487.833.664 1.809.499 2.757h.001zm-11.741 3.81l-1.877-1.068a.065.065 0 01-.036-.051V6.559c.001-2.277 1.873-4.122 4.181-4.12.976 0 1.92.338 2.671.954-.034.018-.092.05-.131.073l-4.44 2.53a.71.71 0 00-.365.623l-.003 6.173v.002zm1.02-2.168L12 9.25l2.414 1.375v2.75L12 14.75l-2.415-1.375v-2.75z"></path></svg>`,
+  gemini: `<svg height="1em" style="flex:none;line-height:1" viewBox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><title>Gemini</title><path d="M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z" fill="#3186FF"></path><path d="M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z" fill="url(#lobe-icons-gemini-fill-0)"></path><path d="M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z" fill="url(#lobe-icons-gemini-fill-1)"></path><path d="M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z" fill="url(#lobe-icons-gemini-fill-2)"></path><defs><linearGradient gradientUnits="userSpaceOnUse" id="lobe-icons-gemini-fill-0" x1="7" x2="11" y1="15.5" y2="12"><stop stop-color="#08B962"></stop><stop offset="1" stop-color="#08B962" stop-opacity="0"></stop></linearGradient><linearGradient gradientUnits="userSpaceOnUse" id="lobe-icons-gemini-fill-1" x1="8" x2="11.5" y1="5.5" y2="11"><stop stop-color="#F94543"></stop><stop offset="1" stop-color="#F94543" stop-opacity="0"></stop></linearGradient><linearGradient gradientUnits="userSpaceOnUse" id="lobe-icons-gemini-fill-2" x1="3.5" x2="17.5" y1="13.5" y2="12"><stop stop-color="#FABC12"></stop><stop offset=".46" stop-color="#FABC12" stop-opacity="0"></stop></linearGradient></defs></svg>`,
+  grok: `<svg fill="currentColor" fill-rule="evenodd" height="1em" style="flex:none;line-height:1" viewBox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><title>Grok</title><path d="M9.27 15.29l7.978-5.897c.391-.29.95-.177 1.137.272.98 2.369.542 5.215-1.41 7.169-1.951 1.954-4.667 2.382-7.149 1.406l-2.711 1.257c3.889 2.661 8.611 2.003 11.562-.953 2.341-2.344 3.066-5.539 2.388-8.42l.006.007c-.983-4.232.242-5.924 2.75-9.383.06-.082.12-.164.179-.248l-3.301 3.305v-.01L9.267 15.292M7.623 16.723c-2.792-2.67-2.31-6.801.071-9.184 1.761-1.763 4.647-2.483 7.166-1.425l2.705-1.25a7.808 7.808 0 00-1.829-1A8.975 8.975 0 005.984 5.83c-2.533 2.536-3.33 6.436-1.962 9.764 1.022 2.487-.653 4.246-2.34 6.022-.599.63-1.199 1.259-1.682 1.925l7.62-6.815"></path></svg>`,
+  opencode: `<svg width='240' height='300' viewBox='0 0 240 300' fill='none' xmlns='http://www.w3.org/2000/svg'><g clip-path='url(#clip0_1401_86274)'><mask id='mask0_1401_86274' style='mask-type:luminance' maskUnits='userSpaceOnUse' x='0' y='0' width='240' height='300'><path d='M240 0H0V300H240V0Z' fill='white'/></mask><g mask='url(#mask0_1401_86274)'><path d='M180 240H60V120H180V240Z' fill='#CFCECD'/><path d='M180 60H60V240H180V60ZM240 300H0V0H240V300Z' fill='#211E1E'/></g></g><defs><clipPath id='clip0_1401_86274'><rect width='240' height='300' fill='white'/></clipPath></defs></svg>`,
+  hermes: `<img src="data:image/png;base64,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" alt="Hermes">`,
+};
+function icon(id, size, title){
+  const a = AGENT_BY(id);
+  return `<span class="aicon" style="width:${size}px;height:${size}px" title="${title || (a ? a.name : '')}">${ICONS[id]}</span>`;
+}
+
+/* ================= 数据模型 ================= */
+const AGENTS = [
+  {id:'dsh',      name:'DeepSeek Harness', short:'DSH',      dir:'~/.dsh',
+   mcpPath:'~/.dsh/profiles/web/cordis.patch.yml', mcpFormat:'yaml-patch',
+   skillsDir:'~/.dsh/skills', promptFile:'~/.dsh/AGENTS.md'},
+  {id:'claude',   name:'Claude Code',       short:'Claude',   dir:'~/.claude',
+   mcpPath:'~/.claude.json', mcpFormat:'json',
+   skillsDir:'~/.claude/skills', promptFile:'~/.claude/CLAUDE.md'},
+  {id:'codex',    name:'Codex',             short:'Codex',    dir:'~/.codex',
+   mcpPath:'~/.codex/config.toml', mcpFormat:'toml',
+   skillsDir:'~/.codex/skills', promptFile:'~/.codex/AGENTS.md'},
+  {id:'gemini',   name:'Gemini CLI',        short:'Gemini',   dir:'~/.gemini',
+   mcpPath:'~/.gemini/settings.json', mcpFormat:'json',
+   skillsDir:'~/.gemini/skills', promptFile:'~/.gemini/GEMINI.md'},
+  {id:'grok',     name:'Grok Build',        short:'Grok',     dir:'~/.grok',
+   mcpPath:'~/.grok/config.toml', mcpFormat:'toml',
+   skillsDir:'~/.grok/skills', promptFile:'~/.grok/AGENTS.md'},
+  {id:'opencode', name:'OpenCode',          short:'OpenCode', dir:'~/.config/opencode',
+   mcpPath:'~/.config/opencode/opencode.json', mcpFormat:'json',
+   skillsDir:'~/.config/opencode/skills', promptFile:'~/.config/opencode/AGENTS.md'},
+  {id:'hermes',   name:'Hermes',            short:'Hermes',   dir:'~/.hermes',
+   mcpPath:'~/.hermes/config.yaml', mcpFormat:'yaml',
+   skillsDir:'~/.hermes/skills', promptFile:'~/.hermes/SOUL.md'},
+];
+function AGENT_BY(id){ return AGENTS.find(a=>a.id===id); }
+
+/* ---- MCP 统一库 ---- */
+const MCP_ITEMS = [
+  {id:'tavily', name:'tavily', desc:'联网搜索能力（Tavily API）', tag:'搜索',
+   homepage:'https://tavily.com', docs:'https://docs.tavily.com/documentation/api-reference/mcp',
+   spec:{type:'http', url:'https://mcp.tavily.com/mcp/?tavilyApiKey=***'},
+   apps:{dsh:1,claude:1,codex:0,gemini:1,grok:0,opencode:0,hermes:0}},
+  {id:'dbx', name:'dbx', desc:'数据库连接、查询与表结构管理', tag:'数据库',
+   homepage:'https://github.com/dbx-app/mcp-server',
+   spec:{type:'stdio', command:'npx', args:['-y','@dbx-app/mcp-server@latest']},
+   apps:{dsh:1,claude:1,codex:1,gemini:0,grok:0,opencode:0,hermes:0}},
+  {id:'playwright', name:'playwright', desc:'浏览器自动化与网页操作', tag:'自动化',
+   homepage:'https://playwright.dev', docs:'https://github.com/microsoft/playwright-mcp',
+   spec:{type:'stdio', command:'npx', args:['-y','@playwright/mcp@latest']},
+   apps:{dsh:1,claude:1,codex:1,gemini:1,grok:0,opencode:1,hermes:0}},
+  {id:'fetch', name:'fetch', desc:'网页抓取与 Markdown 格式化输出', tag:'网络',
+   homepage:'https://github.com/modelcontextprotocol/servers/tree/main/src/fetch',
+   spec:{type:'stdio', command:'uvx', args:['mcp-server-fetch']},
+   apps:{dsh:1,claude:0,codex:0,gemini:0,grok:0,opencode:0,hermes:0}},
+  {id:'context7', name:'context7', desc:'为代码生成注入最新版库文档', tag:'代码',
+   homepage:'https://context7.com',
+   spec:{type:'http', url:'https://mcp.context7.com/mcp'},
+   apps:{dsh:0,claude:1,codex:1,gemini:0,grok:0,opencode:0,hermes:0}},
+  {id:'sequential-thinking', name:'sequential-thinking', desc:'结构化多步推理与思维链', tag:'思考',
+   homepage:'https://github.com/modelcontextprotocol/servers/tree/main/src/sequentialthinking',
+   spec:{type:'stdio', command:'npx', args:['-y','@modelcontextprotocol/server-sequential-thinking']},
+   apps:{dsh:0,claude:1,codex:0,gemini:0,grok:0,opencode:0,hermes:0}},
+  {id:'github', name:'github', desc:'仓库、Issue、PR 与代码评审操作', tag:'代码',
+   homepage:'https://github.com/github/github-mcp-server', docs:'https://github.com/github/github-mcp-server#readme',
+   spec:{type:'http', url:'https://api.githubcopilot.com/mcp/'},
+   apps:{dsh:0,claude:1,codex:1,gemini:0,grok:1,opencode:1,hermes:0}},
+  {id:'filesystem', name:'filesystem', desc:'本地文件读写访问', tag:'文件系统',
+   homepage:'https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem',
+   spec:{type:'stdio', command:'npx', args:['-y','@modelcontextprotocol/server-filesystem','D:\\Code']},
+   apps:{dsh:0,claude:1,codex:0,gemini:0,grok:0,opencode:0,hermes:1}},
+];
+
+const MCP_PRESETS = [
+  {id:'playwright', name:'playwright', desc:'浏览器自动化与网页操作', tag:'自动化',
+   homepage:'https://playwright.dev', docs:'https://github.com/microsoft/playwright-mcp',
+   spec:{type:'stdio', command:'npx', args:['-y','@playwright/mcp@latest']}},
+  {id:'fetch', name:'fetch', desc:'网页抓取与 Markdown 格式化输出', tag:'网络',
+   homepage:'https://github.com/modelcontextprotocol/servers/tree/main/src/fetch',
+   spec:{type:'stdio', command:'uvx', args:['mcp-server-fetch']}},
+  {id:'context7', name:'context7', desc:'为代码生成注入最新版库文档', tag:'代码',
+   homepage:'https://context7.com',
+   spec:{type:'http', url:'https://mcp.context7.com/mcp'}},
+  {id:'tavily', name:'tavily', desc:'联网搜索能力（Tavily API）', tag:'搜索',
+   homepage:'https://tavily.com', docs:'https://docs.tavily.com/documentation/api-reference/mcp',
+   spec:{type:'http', url:'https://mcp.tavily.com/mcp/?tavilyApiKey=YOUR_KEY'}},
+  {id:'dbx', name:'dbx', desc:'数据库连接、查询与表结构管理', tag:'数据库',
+   homepage:'https://github.com/dbx-app/mcp-server',
+   spec:{type:'stdio', command:'npx', args:['-y','@dbx-app/mcp-server@latest']}},
+  {id:'filesystem', name:'filesystem', desc:'本地文件读写访问', tag:'文件系统',
+   homepage:'https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem',
+   spec:{type:'stdio', command:'npx', args:['-y','@modelcontextprotocol/server-filesystem','/path/to/allowed/dir']}},
+  {id:'github', name:'github', desc:'仓库、Issue、PR 与代码评审操作', tag:'代码',
+   homepage:'https://github.com/github/github-mcp-server', docs:'https://github.com/github/github-mcp-server#readme',
+   spec:{type:'http', url:'https://api.githubcopilot.com/mcp/'}},
+  {id:'sequential-thinking', name:'sequential-thinking', desc:'结构化多步推理与思维链', tag:'思考',
+   homepage:'https://github.com/modelcontextprotocol/servers/tree/main/src/sequentialthinking',
+   spec:{type:'stdio', command:'npx', args:['-y','@modelcontextprotocol/server-sequential-thinking']}},
+];
+
+/* ---- Skills：中央库（SSOT） ---- */
+const SSOT_DIR = '~/.harness-manager/skills';
+const SKILLS_INSTALLED = [
+  {dir:'brainstorming', name:'brainstorming', desc:'将想法打磨为设计与规格：分类请求、澄清问题、产出设计文档', repo:'obra/superpowers', hasUpdate:false,
+   apps:{dsh:1,claude:1,codex:0,gemini:0,grok:0,opencode:0,hermes:0}},
+  {dir:'writing-plans', name:'writing-plans', desc:'为多步任务编写含审查检查点的实施计划', repo:'obra/superpowers', hasUpdate:true,
+   apps:{dsh:1,claude:1,codex:1,gemini:0,grok:0,opencode:0,hermes:0}},
+  {dir:'test-driven-development', name:'test-driven-development', desc:'TDD：先写失败测试，再写实现代码', repo:'obra/superpowers', hasUpdate:false,
+   apps:{dsh:1,claude:1,codex:0,gemini:0,grok:0,opencode:1,hermes:0}},
+  {dir:'systematic-debugging', name:'systematic-debugging', desc:'系统化调试：先定位根因，再提出修复', repo:'obra/superpowers', hasUpdate:false,
+   apps:{dsh:0,claude:1,codex:0,gemini:0,grok:0,opencode:0,hermes:0}},
+  {dir:'verification-before-completion', name:'verification-before-completion', desc:'完成前验证：运行命令、拿到证据再下结论', repo:'obra/superpowers', hasUpdate:false,
+   apps:{dsh:1,claude:1,codex:0,gemini:1,grok:0,opencode:0,hermes:0}},
+  {dir:'commit-message', name:'commit-message', desc:'生成规范化提交信息', repo:null, hasUpdate:false,
+   apps:{dsh:0,claude:1,codex:0,gemini:0,grok:0,opencode:0,hermes:0}},
+];
+
+const SKILL_REPOS = [
+  {owner:'obra', name:'superpowers', branch:'main'},
+];
+
+/* 发现页（仓库模式） */
+const SKILLS_DISCOVERY = [
+  {key:'executing-plans', name:'executing-plans', desc:'在有审查检查点的独立会话中执行书面实施计划', repo:'obra/superpowers'},
+  {key:'requesting-code-review', name:'requesting-code-review', desc:'完成任务后请求代码评审，验证工作满足需求', repo:'obra/superpowers'},
+  {key:'receiving-code-review', name:'receiving-code-review', desc:'接收代码评审反馈：先验证再实施建议', repo:'obra/superpowers'},
+  {key:'finishing-a-development-branch', name:'finishing-a-development-branch', desc:'实现完成后决定分支如何集成', repo:'obra/superpowers'},
+  {key:'dispatching-parallel-agents', name:'dispatching-parallel-agents', desc:'将独立任务并行分派给子代理执行', repo:'obra/superpowers'},
+  {key:'subagent-driven-development', name:'subagent-driven-development', desc:'在当前会话中用子代理执行实施计划', repo:'obra/superpowers'},
+  {key:'writing-skills', name:'writing-skills', desc:'创建与编辑可复用的 skill 指令集', repo:'obra/superpowers'},
+  {key:'using-git-worktrees', name:'using-git-worktrees', desc:'需要隔离工作区时使用 git worktree', repo:'obra/superpowers'},
+];
+
+/* 发现页（skills.sh 模式） */
+const SKILLS_SH = [
+  {key:'pdf', name:'pdf', desc:'处理 PDF 文件：读取、编辑、搜索与格式转换', repo:'ananddtyagi/pdf-skill', installs:28435},
+  {key:'docx', name:'docx', desc:'创建与编辑 Word 文档', repo:'ananddtyagi/office-skill', installs:21532},
+  {key:'xlsx', name:'xlsx', desc:'Excel 电子表格读写与公式计算', repo:'ananddtyagi/office-skill', installs:19871},
+  {key:'pptx', name:'pptx', desc:'PowerPoint 演示文稿生成', repo:'ananddtyagi/office-skill', installs:12044},
+  {key:'browser-tools', name:'browser-tools', desc:'浏览器开发工具：控制台、网络与截图', repo:'AgentDeskAI/browser-tools-mcp', installs:9821},
+  {key:'webapp-testing', name:'webapp-testing', desc:'Web 应用端到端测试与可访问性检查', repo:'vercel-labs/webapp-testing', installs:6430},
+];
+
+/* Skill 卸载备份 */
+const SKILL_BACKUPS = [
+  {backupId:'bk-1', name:'code-review', dir:'code-review', desc:'代码评审规范与检查清单',
+   createdAt:'2026-08-12 21:04', path:'~/.harness-manager/skill-backups/code-review-20260812'},
+  {backupId:'bk-2', name:'sql-optimizer', dir:'sql-optimizer', desc:'SQL 查询优化建议',
+   createdAt:'2026-08-02 10:37', path:'~/.harness-manager/skill-backups/sql-optimizer-20260802'},
+];
+
+/* 未纳管 Skill（导入用） */
+const UNMANAGED_SKILLS = [
+  {dir:'pdf', name:'pdf', desc:'处理 PDF 文件：读取、编辑、搜索', foundIn:['claude','codex'], path:'~/.claude/skills/pdf'},
+  {dir:'api-doc-writer', name:'api-doc-writer', desc:'生成 API 接口文档', foundIn:['claude'], path:'~/.claude/skills/api-doc-writer'},
+  {dir:'changelog', name:'changelog', desc:'生成版本更新日志', foundIn:['opencode'], path:'~/.config/opencode/skills/changelog'},
+];
+
+/* ---- 提示词库（每 harness 一套，单条激活） ---- */
+const PROMPTS = {
+  dsh: [
+    {id:'dsh-1', name:'中文 · 全栈工程师', desc:'中文回复，先说明修改思路再动手', enabled:true,  updated:'2 小时前',
+     content:'你是一名资深全栈工程师助手。使用中文回复。回答前先思考用户的真实意图，优先给出可运行的代码，并解释关键决策。涉及不可逆操作前必须先确认。'},
+    {id:'dsh-2', name:'English · Minimal', desc:'Concise English answers, minimal diffs', enabled:false, updated:'3 天前',
+     content:'You are a precise coding agent. Always run tests after edits. Prefer minimal diffs over large rewrites. Ask before deleting files.'},
+  ],
+  claude: [
+    {id:'cl-1', name:'资深工程师助手', desc:'先思考真实意图，优先给可运行代码', enabled:true, updated:'昨天',
+     content:'你是一名资深全栈工程师助手。回答前先思考用户的真实意图，优先给出可运行的代码，并解释关键决策。'},
+    {id:'cl-2', name:'Code Review 模式', desc:'评审视角：只提问题、风险与改进建议', enabled:false, updated:'5 天前',
+     content:'你是代码评审专家。逐项检查正确性、边界条件、可读性与测试覆盖，按严重程度排序输出问题清单。'},
+  ],
+  codex: [
+    {id:'cx-1', name:'精确编码代理', desc:'英文、小步提交、测试先行', enabled:true, updated:'3 天前',
+     content:'You are a precise coding agent. Always run tests after edits. Prefer minimal diffs over large rewrites.'},
+  ],
+  gemini: [
+    {id:'gm-1', name:'全栈工程师助手', desc:'与 Claude 库同源的通用配置', enabled:true, updated:'昨天',
+     content:'你是一名资深全栈工程师助手。回答前先思考用户的真实意图，优先给出可运行的代码。'},
+  ],
+  grok: [],
+  opencode: [
+    {id:'oc-1', name:'自主编码代理', desc:'小步可验证，记录每次文件变更', enabled:true, updated:'1 天前',
+     content:'You are OpenCode, an autonomous coding agent. Work in small verifiable steps. Log every file change.'},
+  ],
+  hermes: [
+    {id:'hm-1', name:'稳定执行者', desc:'聚焦任务执行与结果汇报', enabled:true, updated:'4 天前',
+     content:'你是一名稳定可靠的执行代理。严格按指令执行任务，及时汇报进展与阻塞。'},
+  ],
+};
+
+/* ================= 状态 ================= */
+let currentView = 'dashboard';
+let skillsTab = 'installed';
+let discSource = 'repos';
+let currentPromptAgent = 'dsh';
+let mcpQuery = '';
+let skillQuery = '';
+let discQuery = '';
+let discRepo = 'all';
+let discStatus = 'all';
+let mcpEditingId = null;
+let promptEditing = null;   // {agentId, id} | null
+let copySourcePrompt = null;
+let confirmCb = null;
+let detailCtx = null;       // {kind, id}
+let wizType = 'stdio';
+
+const $ = id => document.getElementById(id);
+
+/* ================= Toast ================= */
+let toastTimer;
+function showToast(msg){
+  const toast = $('toast');
+  $('toast-text').textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=> toast.classList.remove('show'), 2800);
+}
+
+/* ================= 通用确认框 ================= */
+function askConfirm(title, msg, onConfirm, confirmText){
+  $('cf-title').textContent = title;
+  $('cf-msg').textContent = msg;
+  $('cf-ok').textContent = confirmText || '确认';
+  confirmCb = onConfirm;
+  $('modal-confirm').classList.add('open');
+}
+$('cf-cancel').addEventListener('click', ()=>{ confirmCb = null; $('modal-confirm').classList.remove('open'); });
+$('cf-ok').addEventListener('click', ()=>{
+  const cb = confirmCb; confirmCb = null;
+  $('modal-confirm').classList.remove('open');
+  if(cb) cb();
+});
+
+/* ================= Sidebar & Dashboard ================= */
+function renderSidebarAgents(){
+  const el = $('sidebar-agent-list');
+  el.innerHTML = AGENTS.map(a=>`
+    <button class="agent-row" data-agent="${a.id}" title="${a.name}">
+      ${icon(a.id, 16, a.name)}
+      <span class="name-mono">${a.short}</span>
+    </button>`).join('');
+}
+
+function renderDashboard(){
+  $('stat-mcp').textContent = MCP_ITEMS.length;
+  $('stat-skill').textContent = SKILLS_INSTALLED.length;
+  $('stat-prompt').textContent = AGENTS.reduce((n,a)=> n + PROMPTS[a.id].filter(p=>p.enabled).length, 0);
+
+  $('dash-agent-grid').innerHTML = AGENTS.map(a=>{
+    const mcp = MCP_ITEMS.filter(i=>i.apps[a.id]).length;
+    const skill = SKILLS_INSTALLED.filter(i=>i.apps[a.id]).length;
+    const prompt = PROMPTS[a.id].filter(p=>p.enabled).length;
+    return `<div class="mini-agent-card">
+      ${icon(a.id, 28, a.name)}
+      <div>
+        <div class="m-name">${a.name}</div>
+        <div class="m-meta">MCP ${mcp} · Skills ${skill} · 提示词 ${prompt}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ================= 计数徽章行（AppCountBar） ================= */
+function renderCountBar(containerId, items, kind){
+  const el = $(containerId);
+  const unit = kind==='mcp' ? 'MCP' : 'Skill';
+  const badges = AGENTS.map(a=>{
+    const n = items.filter(i=>i.apps[a.id]).length;
+    const allOn = items.length>0 && n>=items.length;
+    return `<button class="count-badge ${allOn?'all-on':''}" data-bulk="${a.id}" data-kind="${kind}"
+      title="${a.name}：${n} 个已开启 · 点击${allOn?'全部关闭':'全部开启'}">
+      ${icon(a.id, 15, a.name)}<b>${n}</b>
+    </button>`;
+  }).join('');
+  el.innerHTML = `<div class="count-bar">
+    <span class="count-total">${items.length} 个${unit}</span>
+    <div class="count-badges">${badges}</div>
+  </div>`;
+  el.querySelectorAll('[data-bulk]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const agentId = btn.dataset.bulk;
+      const agent = AGENT_BY(agentId);
+      const allOn = items.length>0 && items.every(i=>i.apps[agentId]);
+      const target = allOn ? 0 : 1;
+      items.forEach(i=> i.apps[agentId] = target);
+      showToast(`已在 ${agent.name} 中${target?'全部开启':'全部关闭'}${kind==='mcp'?' MCP':' Skills'}`);
+      renderCountBar(containerId, items, kind);
+      renderMatrix(kind);
+    });
+  });
+}
+
+/* ================= 矩阵表格 ================= */
+function renderMatrix(kind){
+  const tableId = kind==='mcp' ? 'mcp-table' : 'skills-table';
+  const table = $(tableId);
+  const items = kind==='mcp' ? MCP_ITEMS : SKILLS_INSTALLED;
+
+  const thead = `<thead><tr>
+    <th class="col-name">名称 / 描述</th>
+    ${AGENTS.map(a=>`<th class="col-agent"><span class="agent-col-ic" title="${a.name}">${icon(a.id, 24, a.name)}</span></th>`).join('')}
+    <th style="width:150px;"></th>
+  </tr></thead>`;
+
+  const rows = items.map(item=>{
+    const rowId = kind==='mcp' ? item.id : item.dir;
+    const cells = AGENTS.map(a=>`
+      <td class="col-agent">
+        <label class="switch" title="${a.name}">
+          <input type="checkbox" ${item.apps[a.id]?'checked':''} data-toggle="${rowId}" data-agent="${a.id}" data-kind="${kind}">
+          <span class="slider"></span>
+        </label>
+      </td>`).join('');
+
+    let titleExtras = '';
+    if(kind==='skill'){
+      titleExtras = (item.repo ? `<span class="repo-badge">${item.repo}</span>` : `<span class="repo-badge">本地</span>`)
+        + (item.hasUpdate ? `<span class="upd-badge">可更新</span>` : '');
+    } else {
+      const link = item.docs || item.homepage;
+      if(link) titleExtras += `<button class="title-link" data-open-link="${link}" title="${item.docs ? '打开文档' : '打开主页'}">↗</button>`;
+    }
+
+    let actions = '';
+    if(kind==='mcp'){
+      actions = `<span class="row-actions">
+        <button class="btn btn-ghost btn-sm" data-detail="${item.id}" data-kind="mcp">详情</button>
+        <button class="btn btn-ghost btn-sm" data-edit="${item.id}" data-kind="mcp">编辑</button>
+        <button class="btn btn-ghost btn-sm" data-del="${item.id}" data-kind="mcp">删除</button>
+      </span>`;
+    } else {
+      actions = `<span class="row-actions">
+        <button class="btn btn-ghost btn-sm" data-detail="${item.dir}" data-kind="skill">详情</button>
+        ${item.hasUpdate ? `<button class="btn btn-ghost btn-sm" data-upd="${item.dir}">更新</button>` : ''}
+        <button class="btn btn-ghost btn-sm" data-uninst="${item.dir}">卸载</button>
+      </span>`;
+    }
+
+    const searchText = [
+      item.name, item.desc, item.tag,
+      item.spec && item.spec.command,
+      item.spec && item.spec.url,
+      item.spec && (item.spec.args||[]).join(' '),
+      item.repo,
+    ].filter(Boolean).join(' ').toLowerCase().replace(/"/g,'&quot;');
+
+    return `<tr class="row" data-search="${searchText}">
+      <td class="col-name">
+        <div class="item-title">${item.name} <span class="type-badge ${kind}">${kind==='mcp'?'MCP':'SKILL'}</span>${titleExtras}</div>
+        <div class="item-desc">${item.desc}</div>
+      </td>
+      ${cells}
+      <td class="col-actions">${actions}</td>
+    </tr>`;
+  }).join('');
+
+  table.innerHTML = thead + `<tbody>${rows}</tbody>`;
+
+  // 开关
+  table.querySelectorAll('input[type="checkbox"][data-toggle]').forEach(cb=>{
+    cb.addEventListener('change', e=>{
+      const rowId = e.target.dataset.toggle;
+      const agent = e.target.dataset.agent;
+      const k = e.target.dataset.kind;
+      const it = (k==='mcp' ? MCP_ITEMS : SKILLS_INSTALLED).find(i=> (k==='mcp' ? i.id : i.dir) === rowId);
+      if(!it) return;
+      it.apps[agent] = e.target.checked ? 1 : 0;
+      const agentObj = AGENT_BY(agent);
+      if(k==='mcp'){
+        showToast(e.target.checked
+          ? `已在 ${agentObj.name} 中开启 ${rowId}（写入 ${agentObj.mcpPath}）`
+          : `已在 ${agentObj.name} 中关闭 ${rowId}（从 ${agentObj.mcpPath} 移除）`);
+        renderCountBar('mcp-countbar', MCP_ITEMS, 'mcp');
+      } else {
+        showToast(e.target.checked
+          ? `已在 ${agentObj.name} 中开启 Skill ${rowId}（部署到 ${agentObj.skillsDir}）`
+          : `已在 ${agentObj.name} 中关闭 Skill ${rowId}（移除部署）`);
+        renderCountBar('skills-countbar', SKILLS_INSTALLED, 'skill');
+      }
+      applyMatrixFilters(k);
+    });
+  });
+
+  // 详情 / 编辑 / 删除 / 更新 / 卸载 / 外链
+  table.querySelectorAll('[data-detail]').forEach(btn=>{
+    btn.addEventListener('click', ()=> openDetail(btn.dataset.detail, btn.dataset.kind));
+  });
+  table.querySelectorAll('[data-open-link]').forEach(btn=>{
+    btn.addEventListener('click', e=>{
+      e.stopPropagation();
+      window.open(btn.dataset.openLink, '_blank');
+    });
+  });
+  table.querySelectorAll('[data-edit]').forEach(btn=>{
+    btn.addEventListener('click', ()=> openMcpForm(btn.dataset.edit));
+  });
+  table.querySelectorAll('[data-del]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const item = MCP_ITEMS.find(i=>i.id===btn.dataset.del);
+      askConfirm('删除 MCP', `确定删除「${item.name}」吗？将从所有启用了它的 harness 配置文件中移除。`, ()=>{
+        const idx = MCP_ITEMS.indexOf(item);
+        MCP_ITEMS.splice(idx,1);
+        renderCountBar('mcp-countbar', MCP_ITEMS, 'mcp');
+        renderMatrix('mcp');
+        renderDashboard();
+        showToast(`已删除 MCP「${item.name}」，并从各 harness 配置中移除`);
+      }, '删除');
+    });
+  });
+  table.querySelectorAll('[data-upd]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const s = SKILLS_INSTALLED.find(i=>i.dir===btn.dataset.upd);
+      s.hasUpdate = false;
+      renderMatrix('skill');
+      showToast(`已更新 Skill「${s.name}」到最新版本`);
+    });
+  });
+  table.querySelectorAll('[data-uninst]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const s = SKILLS_INSTALLED.find(i=>i.dir===btn.dataset.uninst);
+      askConfirm('卸载 Skill', `确定卸载「${s.name}」吗？将从所有 harness 的 skills 目录移除部署，并在备份列表保留一份副本。`, ()=>{
+        const idx = SKILLS_INSTALLED.indexOf(s);
+        SKILLS_INSTALLED.splice(idx,1);
+        SKILL_BACKUPS.unshift({backupId:'bk-'+Date.now(), name:s.name, dir:s.dir, desc:s.desc,
+          createdAt:'刚刚', path:`~/.harness-manager/skill-backups/${s.dir}-just-now`});
+        renderCountBar('skills-countbar', SKILLS_INSTALLED, 'skill');
+        renderMatrix('skill');
+        renderDashboard();
+        showToast(`已卸载 Skill「${s.name}」，备份保存在 ~/.harness-manager/skill-backups/`);
+      }, '卸载');
+    });
+  });
+
+  applyMatrixFilters(kind);
+}
+
+function applyMatrixFilters(kind){
+  const tableId = kind==='mcp' ? 'mcp-table' : 'skills-table';
+  let visible = 0;
+  document.querySelectorAll(`#${tableId} tbody tr`).forEach(row=>{
+    const q = kind==='mcp' ? mcpQuery : skillQuery;
+    const ok = !q || (row.dataset.search || '').includes(q);
+    row.classList.toggle('dim', !ok);
+    if(ok) visible++;
+  });
+  if(kind==='mcp'){
+    const empty = visible===0;
+    $('mcp-empty').style.display = empty ? 'block' : 'none';
+    document.querySelector('#view-mcp .matrix-wrap').style.display = empty ? 'none' : 'block';
+  }
+}
+
+/* ================= MCP 搜索（名称 / 描述 / 标签 / 命令） ================= */
+$('mcp-search-input').addEventListener('input', e=>{
+  mcpQuery = e.target.value.trim().toLowerCase();
+  applyMatrixFilters('mcp');
+});
+
+/* ================= 详情面板 ================= */
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function specPreview(agent, item){
+  const s = item.spec || {type:'stdio', command:'', args:[]};
+  if(agent.mcpFormat==='yaml-patch'){
+    const lines = ['- insert:', `  - id: mcp-${item.id}`, `    name: '@deepseek-ai/dsh-mcp-client'`, '    config:', `      serverName: ${item.id}`];
+    if(s.type==='stdio'){
+      lines.push('      transport: stdio', `      command: ${s.command}`);
+      if(s.args && s.args.length) lines.push(`      args: ['${s.args.join("', '")}']`);
+      if(s.env) lines.push(`      env: ${JSON.stringify(s.env)}`);
+    } else {
+      lines.push('      transport: streamable-http', `      url: ${s.url}`);
+      if(s.headers) lines.push(`      headers: ${JSON.stringify(s.headers)}`);
+    }
+    return lines.join('\n');
+  }
+  if(agent.mcpFormat==='toml'){
+    const lines = [`[mcp_servers.${item.id}]`];
+    if(s.type==='stdio'){
+      lines.push(`command = "${s.command}"`);
+      if(s.args && s.args.length) lines.push(`args = [${s.args.map(x=>`"${x}"`).join(', ')}]`);
+    } else {
+      lines.push(`type = "${s.type}"`, `url = "${s.url}"`);
+    }
+    return lines.join('\n');
+  }
+  if(agent.mcpFormat==='yaml'){
+    const lines = ['mcp_servers:', `  ${item.id}:`];
+    if(s.type==='stdio'){
+      lines.push('    type: stdio', `    command: ${s.command}`);
+      if(s.args && s.args.length) lines.push(`    args: [${s.args.map(x=>`'${x}'`).join(', ')}]`);
+    } else {
+      lines.push(`    type: ${s.type}`, `    url: ${s.url}`);
+    }
+    lines.push('    enabled: true');
+    return lines.join('\n');
+  }
+  // json: claude/gemini 用 mcpServers，opencode 用 mcp
+  const spec = JSON.parse(JSON.stringify(s));
+  if(agent.id==='opencode') return JSON.stringify({mcp:{[item.id]:spec}}, null, 2);
+  return JSON.stringify({mcpServers:{[item.id]:spec}}, null, 2);
+}
+
+function openDetail(itemId, kind){
+  const isMcp = kind==='mcp';
+  const item = isMcp ? MCP_ITEMS.find(i=>i.id===itemId) : SKILLS_INSTALLED.find(i=>i.dir===itemId);
+  detailCtx = {kind, id: itemId};
+  $('detail-title').textContent = item.name;
+  $('detail-sub').textContent = `${item.desc} · ${isMcp?'MCP 服务':'Skill'}`;
+
+  const tabs = $('detail-tabs');
+  tabs.innerHTML = AGENTS.map((a,i)=>
+    `<button class="detail-tab ${i===0?'active':''}" data-agent="${a.id}" title="${a.name}">
+      ${icon(a.id, 14, a.name)}<span>${a.short}</span>
+    </button>`).join('');
+
+  function renderBody(agentId){
+    const agent = AGENT_BY(agentId);
+    const enabled = !!item.apps[agentId];
+    let html = '';
+    if(isMcp){
+      const links = [];
+      if(item.docs) links.push(`<a class="detail-link" href="${item.docs}" target="_blank" title="${item.docs}">↗ 文档</a>`);
+      if(item.homepage) links.push(`<a class="detail-link" href="${item.homepage}" target="_blank" title="${item.homepage}">↗ 主页</a>`);
+      html = `
+        ${links.length ? `<div style="display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;">${links.join('')}</div>` : ''}
+        <div class="detail-status ${enabled?'on':'off'}">${enabled?'✓ 已在此 harness 启用':'○ 未启用'}</div>
+        <div class="detail-label">配置文件</div>
+        <div class="code-block">${esc(agent.mcpPath)}</div>
+        <div class="detail-label">写入内容预览（${agent.mcpFormat === 'yaml-patch' ? 'YAML patch 插件条目' : agent.mcpFormat.toUpperCase()}）</div>
+        <div class="code-block">${esc(enabled ? specPreview(agent, item) : `// ${item.id} 未在 ${agent.name} 中启用`)}</div>`;
+    } else {
+      html = `
+        <div class="detail-status ${enabled?'on':'off'}">${enabled?'✓ 已部署到 '+agent.short:'○ 未部署'}</div>
+        <div class="detail-label">部署位置</div>
+        <div class="code-block">${esc(agent.skillsDir + '/' + item.dir + (enabled ? '\n  -> ' + SSOT_DIR + '/' + item.dir : ''))}</div>
+        <div class="detail-label">SKILL.md 预览</div>
+        <div class="code-block">---
+name: ${item.name}
+description: ${item.desc}
+---
+
+（Skill 指令正文，来自 ${item.repo || '本地'}）</div>`;
+    }
+    $('detail-body').innerHTML = html;
+  }
+
+  tabs.querySelectorAll('.detail-tab').forEach(t=>{
+    t.addEventListener('click', ()=>{
+      tabs.querySelectorAll('.detail-tab').forEach(x=>x.classList.remove('active'));
+      t.classList.add('active');
+      renderBody(t.dataset.agent);
+    });
+  });
+  renderBody(AGENTS[0].id);
+  $('detail-panel').classList.add('open');
+}
+$('detail-close').addEventListener('click', ()=> $('detail-panel').classList.remove('open'));
+
+/* ================= MCP 表单（新增 / 编辑） ================= */
+function openMcpForm(editingId){
+  mcpEditingId = editingId || null;
+  const editing = editingId ? MCP_ITEMS.find(i=>i.id===editingId) : null;
+
+  $('mf-title').textContent = editing ? '编辑 MCP' : '新增 MCP';
+  $('mf-presets-block').style.display = editing ? 'none' : 'block';
+  $('mf-id').value = editing ? editing.id : '';
+  $('mf-id').disabled = !!editing;
+  $('mf-id-err').textContent = '';
+  $('mf-name').value = editing ? (editing.name||'') : '';
+  $('mf-desc').value = editing ? (editing.desc||'') : '';
+  $('mf-tags').value = editing ? (editing.tag||'') : '';
+  $('mf-homepage').value = editing ? (editing.homepage||'') : '';
+  $('mf-docs').value = editing ? (editing.docs||'') : '';
+  $('mf-json').value = editing ? JSON.stringify(editing.spec, null, 2) : '';
+  updateJsonStatus();
+
+  $('mf-meta').style.display = editing ? 'block' : 'none';
+  $('mf-meta-toggle').textContent = (editing ? '▾' : '▸') + ' 附加信息（描述 / 标签 / 链接）';
+
+  // 预设 chips
+  const chips = ['<button class="chip active" data-preset="-1">自定义</button>']
+    .concat(MCP_PRESETS.map((p,i)=>`<button class="chip" data-preset="${i}">${p.id}</button>`));
+  $('mf-preset-chips').innerHTML = chips.join('');
+  $('mf-preset-chips').querySelectorAll('.chip').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      $('mf-preset-chips').querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+      chip.classList.add('active');
+      const idx = parseInt(chip.dataset.preset, 10);
+      if(idx < 0){
+        $('mf-id').value=''; $('mf-name').value=''; $('mf-desc').value=''; $('mf-tags').value='';
+        $('mf-homepage').value=''; $('mf-docs').value=''; $('mf-json').value='';
+        updateJsonStatus();
+        return;
+      }
+      const p = MCP_PRESETS[idx];
+      let id = p.id, n = 1;
+      while(MCP_ITEMS.some(i=>i.id===id)) id = `${p.id}-${++n}`;
+      $('mf-id').value = id;
+      $('mf-name').value = p.id;
+      $('mf-desc').value = p.desc;
+      $('mf-tags').value = p.tag;
+      $('mf-homepage').value = p.homepage || '';
+      $('mf-docs').value = p.docs || '';
+      $('mf-json').value = JSON.stringify(p.spec, null, 2);
+      $('mf-id-err').textContent = '';
+      updateJsonStatus();
+    });
+  });
+
+  // 启用 harness 勾选
+  $('mf-apps').innerHTML = AGENTS.map(a=>{
+    const checked = editing ? !!editing.apps[a.id] : (a.id==='dsh');
+    return `<label class="app-check">${icon(a.id,15,a.name)}<input type="checkbox" data-app="${a.id}" ${checked?'checked':''}>${a.short}</label>`;
+  }).join('');
+
+  $('modal-mcp-form').classList.add('open');
+}
+
+function validateMcpJson(){
+  const text = $('mf-json').value.trim();
+  const st = $('mf-json-status');
+  if(!text){ st.textContent = '必填：填写配置 JSON，或点击「使用向导生成」'; st.className='json-status err'; return {ok:false, spec:null}; }
+  try{
+    const v = JSON.parse(text);
+    if(!v || typeof v!=='object' || Array.isArray(v)){ st.textContent='✗ 配置必须是 JSON 对象'; st.className='json-status err'; return {ok:false, spec:null}; }
+    if(v.type==='stdio' && !(v.command||'').trim()){ st.textContent='✗ stdio 类型必须提供 command'; st.className='json-status err'; return {ok:false, spec:v}; }
+    if((v.type==='http'||v.type==='sse') && !(v.url||'').trim()){ st.textContent=`✗ ${v.type} 类型必须提供 url`; st.className='json-status err'; return {ok:false, spec:v}; }
+    st.textContent='✓ JSON 有效'; st.className='json-status ok'; return {ok:true, spec:v};
+  }catch(e){
+    st.textContent = '✗ JSON 语法错误：' + e.message; st.className='json-status err';
+    return {ok:false, spec:null};
+  }
+}
+function updateJsonStatus(){ validateMcpJson(); }
+$('mf-json').addEventListener('input', updateJsonStatus);
+
+$('mf-id').addEventListener('input', ()=>{
+  const v = $('mf-id').value.trim();
+  $('mf-id-err').textContent = (!mcpEditingId && v && MCP_ITEMS.some(i=>i.id===v)) ? 'ID 已存在' : '';
+});
+
+$('mf-meta-toggle').addEventListener('click', ()=>{
+  const el = $('mf-meta');
+  const open = el.style.display!=='none';
+  el.style.display = open ? 'none' : 'block';
+  $('mf-meta-toggle').textContent = (open ? '▸' : '▾') + ' 附加信息（描述 / 标签 / 链接）';
+});
+
+$('btn-add-mcp').addEventListener('click', ()=> openMcpForm(null));
+$('mf-cancel').addEventListener('click', ()=> $('modal-mcp-form').classList.remove('open'));
+
+$('mf-save').addEventListener('click', ()=>{
+  const id = $('mf-id').value.trim();
+  if(!id){ $('mf-id-err').textContent='请填写 ID'; return; }
+  if(!mcpEditingId && MCP_ITEMS.some(i=>i.id===id)){ $('mf-id-err').textContent='ID 已存在'; return; }
+  const {ok, spec} = validateMcpJson();
+  if(!ok || !spec){ showToast('请修正配置 JSON 后再保存'); return; }
+
+  const apps = {};
+  document.querySelectorAll('#mf-apps input[data-app]').forEach(cb=> apps[cb.dataset.app] = cb.checked ? 1 : 0);
+  const homepage = $('mf-homepage').value.trim();
+  const docs = $('mf-docs').value.trim();
+
+  if(mcpEditingId){
+    const item = MCP_ITEMS.find(i=>i.id===mcpEditingId);
+    item.name = $('mf-name').value.trim() || id;
+    item.desc = $('mf-desc').value.trim() || item.desc;
+    item.tag = $('mf-tags').value.trim() || item.tag;
+    item.homepage = homepage || undefined;
+    item.docs = docs || undefined;
+    item.spec = spec;
+    item.apps = apps;
+    showToast(`已保存 MCP「${id}」，变更已写入启用的 harness 配置`);
+  } else {
+    MCP_ITEMS.push({
+      id, name: $('mf-name').value.trim() || id,
+      desc: $('mf-desc').value.trim() || '（无描述）',
+      tag: $('mf-tags').value.trim() || '自定义',
+      homepage: homepage || undefined,
+      docs: docs || undefined,
+      spec, apps,
+    });
+    showToast(`已创建 MCP「${id}」并写入启用的 harness 配置`);
+  }
+  $('modal-mcp-form').classList.remove('open');
+  renderCountBar('mcp-countbar', MCP_ITEMS, 'mcp');
+  renderMatrix('mcp');
+  renderDashboard();
+});
+
+$('btn-import-mcp').addEventListener('click', ()=>{
+  showToast('已从各 harness 导入 2 个新 MCP（tavily 已存在，仅标记 DSH 启用）');
+});
+
+/* ================= MCP 向导 ================= */
+$('mf-wizard-btn').addEventListener('click', ()=>{
+  wizType = 'stdio';
+  $('wz-types').querySelectorAll('.type-card').forEach(c=>c.classList.toggle('active', c.dataset.type==='stdio'));
+  $('wz-stdio-fields').style.display='block';
+  $('wz-remote-fields').style.display='none';
+  updateWizPreview();
+  $('modal-mcp-wizard').classList.add('open');
+});
+$('wz-cancel').addEventListener('click', ()=> $('modal-mcp-wizard').classList.remove('open'));
+
+$('wz-types').querySelectorAll('.type-card').forEach(card=>{
+  card.addEventListener('click', ()=>{
+    $('wz-types').querySelectorAll('.type-card').forEach(c=>c.classList.remove('active'));
+    card.classList.add('active');
+    wizType = card.dataset.type;
+    $('wz-stdio-fields').style.display = wizType==='stdio' ? 'block' : 'none';
+    $('wz-remote-fields').style.display = wizType==='stdio' ? 'none' : 'block';
+    updateWizPreview();
+  });
+});
+['wz-command','wz-args','wz-env','wz-url','wz-headers'].forEach(id=>{
+  $(id).addEventListener('input', updateWizPreview);
+});
+
+function parseKv(text, sep){
+  const out = {};
+  text.split('\n').map(l=>l.trim()).filter(Boolean).forEach(l=>{
+    const i = l.indexOf(sep);
+    if(i>0) out[l.slice(0,i).trim()] = l.slice(i+1).trim();
+  });
+  return out;
+}
+function updateWizPreview(){
+  const spec = {type: wizType};
+  if(wizType==='stdio'){
+    spec.command = $('wz-command').value.trim();
+    const args = $('wz-args').value.split('\n').map(s=>s.trim()).filter(Boolean);
+    if(args.length) spec.args = args;
+    const env = parseKv($('wz-env').value, '=');
+    if(Object.keys(env).length) spec.env = env;
+  } else {
+    spec.url = $('wz-url').value.trim();
+    const headers = parseKv($('wz-headers').value, ':');
+    if(Object.keys(headers).length) spec.headers = headers;
+  }
+  $('wz-preview').textContent = JSON.stringify(spec, null, 2);
+}
+$('wz-apply').addEventListener('click', ()=>{
+  if(wizType==='stdio' && !$('wz-command').value.trim()){ showToast('请填写命令'); return; }
+  if(wizType!=='stdio' && !$('wz-url').value.trim()){ showToast('请填写服务地址'); return; }
+  if(!$('mf-id').value.trim()){
+    const cmd = $('wz-command').value.trim();
+    $('mf-id').value = cmd ? cmd.split(/[\\/]/).pop().replace(/\.(exe|cmd|bat)$/i,'') : '';
+  }
+  if(!$('mf-name').value.trim()) $('mf-name').value = $('mf-id').value;
+  $('mf-json').value = $('wz-preview').textContent;
+  updateJsonStatus();
+  $('modal-mcp-wizard').classList.remove('open');
+  showToast('已生成配置并回填到表单');
+});
+
+/* ================= Skills：子视图切换 ================= */
+document.querySelectorAll('[data-skills-tab]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    skillsTab = btn.dataset.skillsTab;
+    document.querySelectorAll('[data-skills-tab]').forEach(b=>b.classList.toggle('active', b===btn));
+    $('skills-installed-wrap').style.display = skillsTab==='installed' ? 'block' : 'none';
+    $('skills-discovery-wrap').style.display = skillsTab==='discovery' ? 'block' : 'none';
+    $('skills-installed-actions').style.display = skillsTab==='installed' ? 'flex' : 'none';
+    $('skills-discovery-actions').style.display = skillsTab==='discovery' ? 'flex' : 'none';
+  });
+});
+
+/* ---- 已安装视图动作 ---- */
+$('btn-skill-check-updates').addEventListener('click', ()=>{
+  const n = SKILLS_INSTALLED.filter(s=>s.hasUpdate).length;
+  showToast(n>0 ? `发现 ${n} 个 Skill 可更新（列表中标「可更新」）` : '所有 Skill 均为最新版本');
+});
+$('btn-skill-zip').addEventListener('click', ()=>{
+  showToast('（原型）选择 ZIP 文件后，其中的 Skills 将安装到中央库');
+});
+$('btn-skill-backups').addEventListener('click', ()=>{ renderBackups(); $('modal-backups').classList.add('open'); });
+$('backups-close').addEventListener('click', ()=> $('modal-backups').classList.remove('open'));
+
+function renderBackups(){
+  $('backup-list').innerHTML = SKILL_BACKUPS.length===0
+    ? `<div class="empty-box" style="padding:30px;"><h4>暂无备份</h4><p>卸载 Skill 时会自动在此保留副本</p></div>`
+    : SKILL_BACKUPS.map(b=>`
+    <div class="backup-item">
+      <div class="b-top">
+        <span><span class="b-name">${b.name}</span><span class="b-dir">${b.dir}</span></span>
+        <span style="font-size:11px;color:var(--text-faint);">${b.createdAt}</span>
+      </div>
+      <div class="b-path">${b.path}</div>
+      <div class="b-actions">
+        <button class="btn btn-ghost btn-sm" data-restore="${b.backupId}">恢复</button>
+        <button class="btn btn-danger btn-sm" data-delbk="${b.backupId}">删除备份</button>
+      </div>
+    </div>`).join('');
+
+  $('backup-list').querySelectorAll('[data-restore]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const bk = SKILL_BACKUPS.find(b=>b.backupId===btn.dataset.restore);
+      SKILLS_INSTALLED.push({dir:bk.dir, name:bk.name, desc:bk.desc, repo:null, hasUpdate:false,
+        apps:{dsh:0,claude:0,codex:0,gemini:0,grok:0,opencode:0,hermes:0}});
+      renderCountBar('skills-countbar', SKILLS_INSTALLED, 'skill');
+      renderMatrix('skill');
+      renderDashboard();
+      $('modal-backups').classList.remove('open');
+      showToast(`已恢复 Skill「${bk.name}」，默认未部署到任何 harness`);
+    });
+  });
+  $('backup-list').querySelectorAll('[data-delbk]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const bk = SKILL_BACKUPS.find(b=>b.backupId===btn.dataset.delbk);
+      askConfirm('删除备份', `彻底删除「${bk.name}」的备份？此操作不可恢复。`, ()=>{
+        SKILL_BACKUPS.splice(SKILL_BACKUPS.indexOf(bk),1);
+        renderBackups();
+        showToast(`已删除「${bk.name}」的备份`);
+      }, '删除');
+    });
+  });
+}
+
+/* ---- 从 harness 导入 ---- */
+$('btn-skill-import').addEventListener('click', ()=>{
+  renderUnmanaged();
+  $('modal-import-skills').classList.add('open');
+});
+$('import-skills-close').addEventListener('click', ()=> $('modal-import-skills').classList.remove('open'));
+
+function renderUnmanaged(){
+  $('unmanaged-list').innerHTML = UNMANAGED_SKILLS.map((s,i)=>`
+    <div class="unmanaged-item">
+      <input type="checkbox" checked data-um="${i}">
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:600;font-size:13px;">${s.name}</div>
+        <div style="font-size:11.5px;color:var(--text-dim);margin-top:2px;">${s.desc}</div>
+        <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--text-faint);margin-top:3px;">${s.path} · 发现于 ${s.foundIn.map(f=>AGENT_BY(f)?AGENT_BY(f).short:f).join('、')}</div>
+        <div class="mini-toggles">
+          ${AGENTS.map(a=>`<button class="mini-toggle ${s.foundIn.includes(a.id)?'on':''}" data-um-app="${i}" data-app="${a.id}" title="${a.name}">${icon(a.id,15,a.name)}</button>`).join('')}
+        </div>
+      </div>
+    </div>`).join('');
+
+  $('unmanaged-list').querySelectorAll('[data-um-app]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      btn.classList.toggle('on');
+    });
+  });
+}
+$('import-skills-confirm').addEventListener('click', ()=>{
+  const selected = [...document.querySelectorAll('#unmanaged-list input[data-um]:checked')].map(c=>parseInt(c.dataset.um,10));
+  if(selected.length===0){ showToast('请至少选择一个 Skill'); return; }
+  selected.forEach(i=>{
+    const s = UNMANAGED_SKILLS[i];
+    const apps = {};
+    document.querySelectorAll(`#unmanaged-list [data-um-app="${i}"]`).forEach(btn=>{
+      apps[btn.dataset.app] = btn.classList.contains('on') ? 1 : 0;
+    });
+    SKILLS_INSTALLED.push({dir:s.dir, name:s.name, desc:s.desc, repo:null, hasUpdate:false, apps});
+  });
+  UNMANAGED_SKILLS.splice(0);
+  renderCountBar('skills-countbar', SKILLS_INSTALLED, 'skill');
+  renderMatrix('skill');
+  renderDashboard();
+  $('modal-import-skills').classList.remove('open');
+  showToast(`已导入 ${selected.length} 个 Skill 到中央库`);
+});
+
+/* ---- 发现页 ---- */
+$('btn-skill-refresh').addEventListener('click', ()=> showToast('已刷新仓库发现结果'));
+document.querySelectorAll('[data-disc-source]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    discSource = btn.dataset.discSource;
+    document.querySelectorAll('[data-disc-source]').forEach(b=>b.classList.toggle('active', b===btn));
+    renderDiscovery();
+  });
+});
+$('disc-search-input').addEventListener('input', e=>{ discQuery = e.target.value.trim().toLowerCase(); renderDiscovery(); });
+$('disc-repo-filter').addEventListener('change', e=>{ discRepo = e.target.value; renderDiscovery(); });
+$('disc-status-filter').addEventListener('change', e=>{ discStatus = e.target.value; renderDiscovery(); });
+
+function renderDiscovery(){
+  // 仓库下拉选项（仅仓库模式使用）
+  const repoSel = $('disc-repo-filter');
+  if(discSource==='repos'){
+    const repos = ['all', ...new Set(SKILLS_DISCOVERY.map(s=>s.repo))];
+    if(repoSel.options.length !== repos.length){
+      repoSel.innerHTML = repos.map(r=>`<option value="${r}">${r==='all'?'全部仓库':r}</option>`).join('');
+      repoSel.value = discRepo;
+    }
+    repoSel.style.display = '';
+    $('disc-status-filter').style.display = '';
+  } else {
+    repoSel.style.display = 'none';
+    $('disc-status-filter').style.display = 'none';
+  }
+
+  const isSh = discSource==='skillssh';
+  const source = isSh ? SKILLS_SH : SKILLS_DISCOVERY;
+  let list = source.filter(s=>{
+    const installed = SKILLS_INSTALLED.some(i=>i.dir===s.name);
+    if(isSh) return true;
+    if(discRepo!=='all' && s.repo!==discRepo) return false;
+    if(discStatus==='installed' && !installed) return false;
+    if(discStatus==='uninstalled' && installed) return false;
+    return true;
+  });
+  if(discQuery){
+    list = list.filter(s=> s.name.toLowerCase().includes(discQuery) || (s.repo||'').toLowerCase().includes(discQuery));
+  }
+
+  if(list.length===0){
+    $('skill-grid').innerHTML = `<div class="empty-box" style="grid-column:1/-1;"><h4>没有匹配的 Skills</h4><p>尝试更换关键词，或添加新的 Skill 仓库</p></div>`;
+    return;
+  }
+
+  $('skill-grid').innerHTML = list.map(s=>{
+    const installed = SKILLS_INSTALLED.some(i=>i.dir===s.name);
+    return `<div class="skill-card">
+      <div class="sc-head">
+        <div>
+          <div class="sc-name">${s.name}</div>
+          <div class="sc-badges">
+            <span class="repo-badge">${s.repo}</span>
+            ${s.installs ? `<span class="installs">↓ ${s.installs.toLocaleString()}</span>` : ''}
+          </div>
+        </div>
+        ${installed ? '<span class="installed-badge">已安装</span>' : ''}
+      </div>
+      <div class="sc-desc">${s.desc}</div>
+      <div class="sc-foot">
+        <button class="btn btn-ghost btn-sm" data-view-skill="${s.name}" style="flex:1;">查看文档</button>
+        ${installed
+          ? '<button class="btn btn-ghost btn-sm" style="flex:1;" disabled>已安装</button>'
+          : `<button class="btn btn-primary btn-sm" style="flex:1;" data-install="${s.name}" data-repo="${s.repo}">安装</button>`}
+      </div>
+    </div>`;
+  }).join('');
+
+  $('skill-grid').querySelectorAll('[data-install]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const name = btn.dataset.install;
+      SKILLS_INSTALLED.push({dir:name, name, desc:'（来自 '+btn.dataset.repo+'）', repo:btn.dataset.repo, hasUpdate:false,
+        apps:{dsh:0,claude:0,codex:0,gemini:0,grok:0,opencode:0,hermes:0}});
+      renderDiscovery();
+      renderCountBar('skills-countbar', SKILLS_INSTALLED, 'skill');
+      renderMatrix('skill');
+      renderDashboard();
+      showToast(`已安装 Skill「${name}」，可在「已安装」中为各 harness 开启`);
+    });
+  });
+  $('skill-grid').querySelectorAll('[data-view-skill]').forEach(btn=>{
+    btn.addEventListener('click', ()=> showToast('（原型）在浏览器中打开该 Skill 的 README'));
+  });
+}
+
+/* ---- 仓库管理 ---- */
+$('btn-repo-manager').addEventListener('click', ()=>{ renderRepoList(); $('modal-repo').classList.add('open'); });
+$('repo-close').addEventListener('click', ()=> $('modal-repo').classList.remove('open'));
+$('repo-add').addEventListener('click', ()=>{
+  const url = $('repo-url').value.trim();
+  const cleaned = url.replace(/^https?:\/\/github\.com\//,'').replace(/\.git$/,'');
+  const parts = cleaned.split('/');
+  if(parts.length!==2 || !parts[0] || !parts[1]){ showToast('仓库 URL 格式不正确'); return; }
+  const branch = $('repo-branch').value.trim() || 'main';
+  SKILL_REPOS.push({owner:parts[0], name:parts[1], branch});
+  $('repo-url').value=''; $('repo-branch').value='';
+  renderRepoList();
+  showToast(`已添加仓库 ${parts[0]}/${parts[1]}，发现页已更新`);
+});
+function renderRepoList(){
+  $('repo-list').innerHTML = SKILL_REPOS.length===0
+    ? `<div class="empty-box" style="padding:26px;"><h4>暂无仓库</h4><p>添加 GitHub 仓库后即可发现其中的 Skills</p></div>`
+    : SKILL_REPOS.map((r,i)=>{
+      const count = SKILLS_DISCOVERY.filter(s=>s.repo===`${r.owner}/${r.name}`).length;
+      return `<div class="repo-item">
+        <div style="flex:1;min-width:0;">
+          <div class="r-name">${r.owner}/${r.name}</div>
+          <div class="r-meta">分支：${r.branch}</div>
+        </div>
+        <span class="r-count">${count} Skills</span>
+        <button class="btn btn-ghost btn-sm" data-repo-open="${i}">查看</button>
+        <button class="btn btn-danger btn-sm" data-repo-del="${i}">移除</button>
+      </div>`;
+    }).join('');
+  $('repo-list').querySelectorAll('[data-repo-open]').forEach(btn=>{
+    btn.addEventListener('click', ()=> showToast('（原型）在浏览器中打开仓库页面'));
+  });
+  $('repo-list').querySelectorAll('[data-repo-del]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const r = SKILL_REPOS[parseInt(btn.dataset.repoDel,10)];
+      askConfirm('移除仓库', `移除仓库 ${r.owner}/${r.name}？已安装的 Skills 不受影响，仅从发现页移除。`, ()=>{
+        SKILL_REPOS.splice(SKILL_REPOS.indexOf(r),1);
+        renderRepoList();
+        showToast(`已移除仓库 ${r.owner}/${r.name}`);
+      }, '移除');
+    });
+  });
+}
+
+/* ================= 提示词视图 ================= */
+function renderPrompts(){
+  // harness tabs
+  $('prompt-tabs').innerHTML = AGENTS.map(a=>`
+    <button class="prompt-tab ${a.id===currentPromptAgent?'active':''}" data-agent="${a.id}" title="${a.name}">
+      ${icon(a.id, 15, a.name)}<span>${a.short}</span>
+    </button>`).join('');
+  $('prompt-tabs').querySelectorAll('.prompt-tab').forEach(t=>{
+    t.addEventListener('click', ()=>{
+      currentPromptAgent = t.dataset.agent;
+      renderPrompts();
+    });
+  });
+
+  const agent = AGENT_BY(currentPromptAgent);
+  const list = PROMPTS[currentPromptAgent];
+  $('prompt-file').textContent = `指令文件 · ${agent.promptFile}`;
+
+  if(list.length===0){
+    $('prompt-list').innerHTML = `<div class="empty-box">
+      <h4>「${agent.short}」还没有提示词</h4>
+      <p>新增一条提示词并激活，内容将写入 ${agent.promptFile}</p>
+      <button class="btn btn-primary" id="btn-add-prompt-empty">+ 新增提示词</button>
+    </div>`;
+    $('btn-add-prompt-empty').addEventListener('click', ()=> openPromptForm(null));
+    return;
+  }
+
+  $('prompt-list').innerHTML = list.map(p=>`
+    <div class="prompt-card ${p.enabled?'on':''}">
+      <label class="switch" title="${p.enabled?'点击停用（指令文件将被清空）':'点击激活并写入指令文件'}">
+        <input type="checkbox" ${p.enabled?'checked':''} data-pt-toggle="${p.id}">
+        <span class="slider"></span>
+      </label>
+      <div class="pc-main">
+        <div class="pc-name">${esc(p.name)}
+          ${p.enabled ? `<span class="pc-on-badge">已激活 · 写入 ${agent.promptFile}</span>` : ''}
+        </div>
+        ${p.desc ? `<div class="pc-desc">${esc(p.desc)}</div>` : ''}
+        <div class="pc-meta">更新于 ${p.updated}</div>
+      </div>
+      <div class="pc-actions">
+        <button class="btn btn-ghost btn-sm" data-pt-copy="${p.id}">复制到其他 harness</button>
+        <button class="btn btn-ghost btn-sm" data-pt-edit="${p.id}">编辑</button>
+        <button class="btn btn-ghost btn-sm" data-pt-del="${p.id}" ${p.enabled?'disabled title="已激活的提示词不可删除，请先停用"':''}>删除</button>
+      </div>
+    </div>`).join('');
+
+  // 激活 / 停用
+  $('prompt-list').querySelectorAll('[data-pt-toggle]').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      const p = PROMPTS[currentPromptAgent].find(x=>x.id===cb.dataset.ptToggle);
+      if(cb.checked){
+        PROMPTS[currentPromptAgent].forEach(x=> x.enabled = false);
+        p.enabled = true;
+        p.updated = '刚刚';
+        showToast(`已激活「${p.name}」，内容写入 ${agent.promptFile}（原文件外部改动已自动回填）`);
+      } else {
+        p.enabled = false;
+        showToast(`已停用「${p.name}」，${agent.promptFile} 已清空`);
+      }
+      renderPrompts();
+    });
+  });
+  // 编辑
+  $('prompt-list').querySelectorAll('[data-pt-edit]').forEach(btn=>{
+    btn.addEventListener('click', ()=> openPromptForm(btn.dataset.ptEdit));
+  });
+  // 删除
+  $('prompt-list').querySelectorAll('[data-pt-del]').forEach(btn=>{
+    if(btn.disabled) return;
+    btn.addEventListener('click', ()=>{
+      const p = PROMPTS[currentPromptAgent].find(x=>x.id===btn.dataset.ptDel);
+      askConfirm('删除提示词', `确定删除「${p.name}」？`, ()=>{
+        const arr = PROMPTS[currentPromptAgent];
+        arr.splice(arr.indexOf(p),1);
+        renderPrompts();
+        renderDashboard();
+        showToast(`已删除提示词「${p.name}」`);
+      }, '删除');
+    });
+  });
+  // 复制到其他 harness
+  $('prompt-list').querySelectorAll('[data-pt-copy]').forEach(btn=>{
+    btn.addEventListener('click', ()=> openCopyModal(btn.dataset.ptCopy));
+  });
+}
+
+$('btn-add-prompt').addEventListener('click', ()=> openPromptForm(null));
+
+function openPromptForm(editingId){
+  promptEditing = editingId ? {agentId: currentPromptAgent, id: editingId} : null;
+  const agent = AGENT_BY(currentPromptAgent);
+  const editing = editingId ? PROMPTS[currentPromptAgent].find(p=>p.id===editingId) : null;
+  $('pf-title').textContent = editing ? '编辑提示词' : '新增提示词';
+  $('pf-sub').textContent = `${agent.name} · 激活后写入 ${agent.promptFile}`;
+  $('pf-name').value = editing ? editing.name : '';
+  $('pf-desc').value = editing ? (editing.desc||'') : '';
+  $('pf-content').value = editing ? editing.content : '';
+  $('modal-prompt-form').classList.add('open');
+}
+$('pf-cancel').addEventListener('click', ()=> $('modal-prompt-form').classList.remove('open'));
+$('pf-save').addEventListener('click', ()=>{
+  const name = $('pf-name').value.trim();
+  if(!name){ showToast('请填写提示词名称'); return; }
+  const agent = AGENT_BY(currentPromptAgent);
+  if(promptEditing){
+    const p = PROMPTS[promptEditing.agentId].find(x=>x.id===promptEditing.id);
+    p.name = name;
+    p.desc = $('pf-desc').value.trim();
+    p.content = $('pf-content').value;
+    p.updated = '刚刚';
+    showToast(p.enabled ? `已保存并写入 ${agent.promptFile}` : '已保存（未激活，不影响指令文件）');
+  } else {
+    PROMPTS[currentPromptAgent].push({
+      id: currentPromptAgent + '-' + Date.now(), name,
+      desc: $('pf-desc').value.trim(), content: $('pf-content').value,
+      enabled:false, updated:'刚刚',
+    });
+    showToast(`已创建提示词「${name}」（未激活）`);
+  }
+  $('modal-prompt-form').classList.remove('open');
+  renderPrompts();
+  renderDashboard();
+});
+
+/* ---- 复制到其他 harness ---- */
+function openCopyModal(promptId){
+  copySourcePrompt = PROMPTS[currentPromptAgent].find(p=>p.id===promptId);
+  const fromAgent = AGENT_BY(currentPromptAgent);
+  $('cp-sub').textContent = `将「${copySourcePrompt.name}」（来自 ${fromAgent.name}）复制为以下 harness 提示词库中的新条目`;
+  const targets = AGENTS.filter(a=>a.id!==currentPromptAgent);
+  $('cp-targets').innerHTML = targets.map(a=>{
+    const n = PROMPTS[a.id].length;
+    return `<label class="target-item">
+      <input type="checkbox" value="${a.id}">
+      ${icon(a.id, 16, a.name)}
+      <span class="name">${a.name}</span>
+      <span class="t-meta">库中已有 ${n} 条</span>
+    </label>`;
+  }).join('');
+  $('modal-copy').classList.add('open');
+}
+$('cp-cancel').addEventListener('click', ()=> $('modal-copy').classList.remove('open'));
+$('cp-confirm').addEventListener('click', ()=>{
+  const checked = [...document.querySelectorAll('#cp-targets input:checked')].map(c=>c.value);
+  if(checked.length===0){ showToast('请至少选择一个目标 harness'); return; }
+  checked.forEach(id=>{
+    let name = copySourcePrompt.name;
+    let n = 1;
+    while(PROMPTS[id].some(p=>p.name===name)) name = `${copySourcePrompt.name} (${++n})`;
+    PROMPTS[id].push({...copySourcePrompt, id: id+'-'+Date.now()+Math.random(), name, enabled:false, updated:'刚刚（复制）'});
+  });
+  $('modal-copy').classList.remove('open');
+  const names = checked.map(id=>AGENT_BY(id).short).join('、');
+  showToast(`已复制到 ${names}（未激活，可在各自库中激活）`);
+  renderPrompts();
+  renderDashboard();
+});
+
+/* ================= Harness 管理视图 ================= */
+function renderAgents(){
+  $('agent-cards').innerHTML = AGENTS.map(a=>`
+    <div class="agent-card">
+      <div class="agent-card-head">
+        ${icon(a.id, 24, a.name)}
+        <div>
+          <div class="name">${a.name}</div>
+          <div class="dir-badge">默认目录 ${a.dir}</div>
+        </div>
+      </div>
+      <div class="path-rows">
+        <div class="path-row"><span>MCP 配置</span><code title="${a.mcpPath}">${a.mcpPath}</code></div>
+        <div class="path-row"><span>Skills 目录</span><code title="${a.skillsDir}">${a.skillsDir}</code></div>
+        <div class="path-row"><span>提示词文件</span><code title="${a.promptFile}">${a.promptFile}</code></div>
+      </div>
+      <div class="dir-override">
+        <label>配置目录覆盖（留空 = 默认路径）</label>
+        <div class="dir-input-row">
+          <input class="field-input mono" placeholder="${a.dir}" data-dir-input="${a.id}">
+          <button class="btn btn-ghost btn-sm" data-dir-browse="${a.id}">浏览</button>
+          <button class="btn btn-ghost btn-sm" data-dir-reset="${a.id}">重置</button>
+        </div>
+      </div>
+    </div>`).join('');
+
+  $('agent-cards').querySelectorAll('[data-dir-browse]').forEach(btn=>{
+    btn.addEventListener('click', ()=> showToast('（原型）打开系统目录选择对话框'));
+  });
+  $('agent-cards').querySelectorAll('[data-dir-reset]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const input = document.querySelector(`[data-dir-input="${btn.dataset.dirReset}"]`);
+      if(!input.value){ showToast('当前已是默认路径'); return; }
+      input.value = '';
+      showToast(`已恢复 ${AGENT_BY(btn.dataset.dirReset).name} 的默认配置目录`);
+    });
+  });
+}
+
+/* ================= 设置视图 ================= */
+$('btn-import-data').addEventListener('click', ()=> showToast('（原型）选择导出的 JSON 备份文件后导入，导入前自动创建当前数据快照'));
+$('btn-export-data').addEventListener('click', ()=> showToast('（原型）已导出全部配置到 harness-manager-backup.json'));
+$('sync-method-row').querySelectorAll('.radio-pill').forEach(pill=>{
+  pill.addEventListener('click', ()=>{
+    $('sync-method-row').querySelectorAll('.radio-pill').forEach(p=>p.classList.remove('active'));
+    pill.classList.add('active');
+    pill.querySelector('input').checked = true;
+  });
+});
+
+/* ================= 视图切换 ================= */
+const viewMeta = {
+  dashboard:{title:'Dashboard', sub:'7 个 harness 的配置总览', search:false},
+  mcp:{title:'MCP 服务', sub:'统一管理 MCP 配置，按 harness 一键开关并写入各自配置文件', search:false},
+  skills:{title:'Skills', sub:'中央库安装与分发，支持仓库发现、更新与备份', search:true},
+  prompts:{title:'提示词', sub:'每个 harness 一套提示词库，单条激活写入指令文件', search:false},
+  agents:{title:'Harness 管理', sub:'各 harness 的配置落点与目录覆盖', search:false},
+  settings:{title:'设置', sub:'数据备份、导入导出与全局选项', search:false},
+};
+document.querySelectorAll('.nav-item[data-view]').forEach(btn=>{
+  btn.addEventListener('click', ()=> switchView(btn.dataset.view));
+});
+function switchView(v){
+  currentView = v;
+  document.querySelectorAll('.nav-item[data-view]').forEach(b=>b.classList.toggle('active', b.dataset.view===v));
+  document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
+  $('view-'+v).classList.add('active');
+  $('view-title').textContent = viewMeta[v].title;
+  $('view-sub').textContent = viewMeta[v].sub;
+  $('search-box').style.display = viewMeta[v].search ? 'flex' : 'none';
+}
+
+/* 侧栏 harness 点击 -> 跳到该 harness 的提示词库 */
+$('sidebar-agent-list').addEventListener('click', e=>{
+  const row = e.target.closest('.agent-row');
+  if(!row) return;
+  currentPromptAgent = row.dataset.agent;
+  switchView('prompts');
+  renderPrompts();
+  showToast(`已切换到 ${AGENT_BY(currentPromptAgent).name} 的提示词库`);
+});
+
+/* ================= 顶栏搜索（Skills 已安装视图） ================= */
+$('search-input').addEventListener('input', e=>{
+  const q = e.target.value.trim().toLowerCase();
+  if(currentView==='skills'){ skillQuery = q; if(skillsTab==='installed') applyMatrixFilters('skill'); }
+});
+
+/* ================= 初始化 ================= */
+renderSidebarAgents();
+renderDashboard();
+renderCountBar('mcp-countbar', MCP_ITEMS, 'mcp');
+renderCountBar('skills-countbar', SKILLS_INSTALLED, 'skill');
+renderMatrix('mcp');
+renderMatrix('skill');
+renderPrompts();
+renderAgents();
+renderDiscovery();
+</script>
+</body>
+</html>
