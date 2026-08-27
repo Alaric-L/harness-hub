@@ -6,3 +6,5 @@ dist/
 .pnpm-store/
 .electron-cache/
 *.tsbuildinfo
+/.idea/
+.idea/
