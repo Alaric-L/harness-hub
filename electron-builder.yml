@@ -1,0 +1,17 @@
+appId: com.harnesshub.app
+productName: HarnessHub
+directories:
+  buildResources: build
+files:
+  - out/**
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{tsconfig.json,tsconfig.node.json}'
+  - '!{.gitignore,pnpm-lock.yaml}'
+win:
+  target:
+    - nsis
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true

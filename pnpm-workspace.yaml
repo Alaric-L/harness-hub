@@ -1,0 +1,8 @@
+# pnpm 11 构建脚本白名单
+# electron: 无构建脚本（v44 需手动 node install.js / npx install-electron 下载二进制）
+# esbuild / electron-winstaller: 平台二进制经 optionalDependencies 提供，
+#   其 postinstall 仅做校验且被 DSH 沙箱的 spawn EPERM 阻断，故显式禁用，避免每次 install 失败
+allowBuilds:
+  electron: true
+  esbuild: false
+  electron-winstaller: false
