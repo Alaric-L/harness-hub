@@ -5,3 +5,4 @@ dist/
 .DS_Store
 .pnpm-store/
 .electron-cache/
+*.tsbuildinfo
