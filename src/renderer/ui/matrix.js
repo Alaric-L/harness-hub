@@ -1,5 +1,5 @@
 /* ================= 计数徽章行（AppCountBar） / 矩阵表格 / 过滤 ================= */
-import { AGENTS, AGENT_BY, SKILLS_INSTALLED, SKILL_BACKUPS } from '../data.js';
+import { AGENTS, AGENT_BY } from '../data.js';
 import { icon } from '../icons.js';
 import { $, showToast, askConfirm } from './common.js';
 import { state } from '../state.js';
@@ -50,7 +50,7 @@ export function renderCountBar(containerId, items, kind){
 export function renderMatrix(kind){
   const tableId = kind==='mcp' ? 'mcp-table' : 'skills-table';
   const table = $(tableId);
-  const items = kind==='mcp' ? state.mcpItems : SKILLS_INSTALLED;
+  const items = kind==='mcp' ? state.mcpItems : state.skillsItems;
 
   const thead = `<thead><tr>
     <th class="col-name">名称 / 描述</th>
@@ -112,7 +112,7 @@ export function renderMatrix(kind){
 
   table.innerHTML = thead + `<tbody>${rows}</tbody>`;
 
-  // 开关（MCP 走真实后端；Skill 仍为 mock，G2 接线）
+  // 开关（MCP / Skill 均走真实后端，G1/G2 接线；失败回滚 checkbox）
   table.querySelectorAll('input[type="checkbox"][data-toggle]').forEach(cb=>{
     cb.addEventListener('change', async e=>{
       const rowId = e.target.dataset.toggle;
@@ -134,13 +134,19 @@ export function renderMatrix(kind){
         applyMatrixFilters(k);
         return;
       }
-      const it = SKILLS_INSTALLED.find(i=>i.dir===rowId);
+      const it = state.skillsItems.find(i=>i.dir===rowId);
       if(!it) return;
-      it.apps[agent] = e.target.checked ? 1 : 0;
-      showToast(e.target.checked
-        ? `已在 ${agentObj.name} 中开启 Skill ${rowId}（部署到 ${agentObj.skillsDir}）`
-        : `已在 ${agentObj.name} 中关闭 Skill ${rowId}（移除部署）`);
-      renderCountBar('skills-countbar', SKILLS_INSTALLED, 'skill');
+      const on = e.target.checked;
+      try {
+        state.skillsItems = await window.hub.toggleSkill(rowId, agent, on);
+        showToast(on
+          ? `已在 ${agentObj.name} 中开启 Skill ${rowId}（部署到 ${agentObj.skillsDir}）`
+          : `已在 ${agentObj.name} 中关闭 Skill ${rowId}（移除部署）`);
+        renderCountBar('skills-countbar', state.skillsItems, 'skill');
+      } catch (err) {
+        e.target.checked = !on;   // 失败回滚 checkbox
+        showToast('操作失败：' + err.message);
+      }
       applyMatrixFilters(k);
     });
   });
@@ -176,25 +182,36 @@ export function renderMatrix(kind){
     });
   });
   table.querySelectorAll('[data-upd]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const s = SKILLS_INSTALLED.find(i=>i.dir===btn.dataset.upd);
-      s.hasUpdate = false;
-      renderMatrix('skill');
-      showToast(`已更新 Skill「${s.name}」到最新版本`);
+    btn.addEventListener('click', async ()=>{
+      const dir = btn.dataset.upd;
+      btn.disabled = true;
+      btn.textContent = '更新中…';
+      try {
+        state.skillsItems = await window.hub.updateSkill(dir);
+        renderCountBar('skills-countbar', state.skillsItems, 'skill');
+        renderMatrix('skill');
+        renderDashboard();
+        const s = state.skillsItems.find(i=>i.dir===dir);
+        showToast(`已更新 Skill「${s ? s.name : dir}」到最新版本`);
+      } catch (err) {
+        showToast('操作失败：' + err.message);
+      }
     });
   });
   table.querySelectorAll('[data-uninst]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
-      const s = SKILLS_INSTALLED.find(i=>i.dir===btn.dataset.uninst);
-      askConfirm('卸载 Skill', `确定卸载「${s.name}」吗？将从所有 harness 的 skills 目录移除部署，并在备份列表保留一份副本。`, ()=>{
-        const idx = SKILLS_INSTALLED.indexOf(s);
-        SKILLS_INSTALLED.splice(idx,1);
-        SKILL_BACKUPS.unshift({backupId:'bk-'+Date.now(), name:s.name, dir:s.dir, desc:s.desc,
-          createdAt:'刚刚', path:`~/.harness-hub/skill-backups/${s.dir}-just-now`});
-        renderCountBar('skills-countbar', SKILLS_INSTALLED, 'skill');
-        renderMatrix('skill');
-        renderDashboard();
-        showToast(`已卸载 Skill「${s.name}」，备份保存在 ~/.harness-hub/skill-backups/`);
+      const s = state.skillsItems.find(i=>i.dir===btn.dataset.uninst);
+      if(!s) return;
+      askConfirm('卸载 Skill', `确定卸载「${s.name}」吗？将从所有 harness 的 skills 目录移除部署，并在备份列表保留一份副本。`, async ()=>{
+        try {
+          state.skillsItems = await window.hub.uninstallSkill(s.dir);
+          renderCountBar('skills-countbar', state.skillsItems, 'skill');
+          renderMatrix('skill');
+          renderDashboard();
+          showToast(`已卸载 Skill「${s.name}」，备份保存在 ~/.harness-hub/skill-backups/`);
+        } catch (err) {
+          showToast('操作失败：' + err.message);
+        }
       }, '卸载');
     });
   });

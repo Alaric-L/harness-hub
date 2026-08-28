@@ -2,9 +2,10 @@
 // 副作用模块：src/main/index.ts 顶层 `import './ipc'` 即完成全部注册，无需调用。
 // 真实实现：getAppInit / getSettings / setSettings / setDirOverride 已接通 store；
 // 其余通道按契约返回类型返回安全空默认值，由 D/E/F/G 块实现。
-import { ipcMain } from 'electron'
-import { AGENTS, settingsFile } from './paths'
-import { loadSettings, saveSettings } from './store'
+import { dialog, ipcMain } from 'electron'
+import path from 'node:path'
+import { AGENTS, dataFile, resolveAgentPaths, settingsFile, ssotSkillsDir } from './paths'
+import { loadSettings, loadStore, saveSettings, saveStore } from './store'
 import {
   bulkToggleMcp,
   deleteMcp,
@@ -32,14 +33,21 @@ import {
   searchSkillsSh,
   updateSkill
 } from './services/discovery'
+import { deploySkill, undeploySkill, uninstallSkill } from './services/skills'
+import {
+  deleteSkillBackup,
+  importSkills,
+  installSkillZip,
+  listSkillBackups,
+  listUnmanagedSkills,
+  restoreSkillBackup
+} from './services/skill-io'
 import type {
   AgentId,
   AppSettings,
   McpItem,
   PromptItem,
-  SkillBackup,
-  SkillInstalled,
-  UnmanagedSkill
+  SkillInstalled
 } from './types'
 
 /** 统一错误处理：任意异常转为可读消息（渲染层 toast 展示用） */
@@ -120,7 +128,7 @@ ipcMain.handle('hub:previewMcp', async (_event, id: string, agentId: AgentId) =>
 
 ipcMain.handle('hub:listSkills', async () => {
   try {
-    return [] as SkillInstalled[] // TODO(Cx): 由 D/E/F/G 块实现
+    return loadStore(dataFile()).skills
   } catch (err) {
     throw new Error(errMessage(err))
   }
@@ -128,7 +136,21 @@ ipcMain.handle('hub:listSkills', async () => {
 
 ipcMain.handle('hub:toggleSkill', async (_event, dir: string, agentId: AgentId, on: boolean) => {
   try {
-    return [] as SkillInstalled[] // TODO(Cx): 由 D/E/F/G 块实现
+    const data = loadStore(dataFile())
+    const entry = data.skills.find((s) => s.dir === dir)
+    if (!entry) throw new Error(`skill not found: ${dir}`)
+    entry.apps = entry.apps ?? {}
+    const settings = loadSettings(settingsFile())
+    const r = resolveAgentPaths(agentId, settings.dirOverrides)
+    if (on) {
+      await deploySkill(ssotSkillsDir(), dir, r.skillsDir, settings.syncMethod)
+      entry.apps[agentId] = true
+    } else {
+      await undeploySkill(path.join(r.skillsDir, dir))
+      delete entry.apps[agentId]
+    }
+    await saveStore(dataFile(), data)
+    return data.skills
   } catch (err) {
     throw new Error(errMessage(err))
   }
@@ -136,7 +158,7 @@ ipcMain.handle('hub:toggleSkill', async (_event, dir: string, agentId: AgentId, 
 
 ipcMain.handle('hub:uninstallSkill', async (_event, dir: string) => {
   try {
-    return [] as SkillInstalled[] // TODO(Cx): 由 D/E/F/G 块实现
+    return await uninstallSkill(dir)
   } catch (err) {
     throw new Error(errMessage(err))
   }
@@ -144,7 +166,7 @@ ipcMain.handle('hub:uninstallSkill', async (_event, dir: string) => {
 
 ipcMain.handle('hub:listSkillBackups', async () => {
   try {
-    return [] as SkillBackup[] // TODO(Cx): 由 D/E/F/G 块实现
+    return listSkillBackups()
   } catch (err) {
     throw new Error(errMessage(err))
   }
@@ -152,7 +174,7 @@ ipcMain.handle('hub:listSkillBackups', async () => {
 
 ipcMain.handle('hub:restoreSkillBackup', async (_event, backupId: string, deploy: boolean) => {
   try {
-    return [] as SkillBackup[] // TODO(Cx): 由 D/E/F/G 块实现
+    return await restoreSkillBackup(backupId, deploy)
   } catch (err) {
     throw new Error(errMessage(err))
   }
@@ -160,7 +182,7 @@ ipcMain.handle('hub:restoreSkillBackup', async (_event, backupId: string, deploy
 
 ipcMain.handle('hub:deleteSkillBackup', async (_event, backupId: string) => {
   try {
-    return [] as SkillBackup[] // TODO(Cx): 由 D/E/F/G 块实现
+    return await deleteSkillBackup(backupId)
   } catch (err) {
     throw new Error(errMessage(err))
   }
@@ -168,7 +190,13 @@ ipcMain.handle('hub:deleteSkillBackup', async (_event, backupId: string) => {
 
 ipcMain.handle('hub:installSkillZip', async () => {
   try {
-    return [] as SkillInstalled[] // TODO(Cx): 由 D/E/F/G 块实现（内部调 dialog.showOpenDialog）
+    const res = await dialog.showOpenDialog({
+      title: '选择 Skill ZIP 文件',
+      properties: ['openFile'],
+      filters: [{ name: 'ZIP 归档', extensions: ['zip'] }]
+    })
+    if (res.canceled || !res.filePaths[0]) return [] as SkillInstalled[] // 用户取消：渲染层安静处理
+    return await installSkillZip(res.filePaths[0])
   } catch (err) {
     throw new Error(errMessage(err))
   }
@@ -176,7 +204,7 @@ ipcMain.handle('hub:installSkillZip', async () => {
 
 ipcMain.handle('hub:listUnmanagedSkills', async () => {
   try {
-    return [] as UnmanagedSkill[] // TODO(Cx): 由 D/E/F/G 块实现
+    return listUnmanagedSkills()
   } catch (err) {
     throw new Error(errMessage(err))
   }
@@ -186,7 +214,7 @@ ipcMain.handle(
   'hub:importSkills',
   async (_event, items: { dir: string; apps: Partial<Record<AgentId, boolean>> }[]) => {
     try {
-      return [] as SkillInstalled[] // TODO(Cx): 由 D/E/F/G 块实现
+      return await importSkills(items)
     } catch (err) {
       throw new Error(errMessage(err))
     }

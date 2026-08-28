@@ -1,6 +1,6 @@
 /* ================= 聚合入口（B2：主视图 mock 渲染 / B3：表单与弹窗全量初始化 / G1：启动接真实后端） ================= */
 import { state } from './state.js';
-import { AGENT_BY, SKILLS_INSTALLED } from './data.js';
+import { AGENT_BY } from './data.js';
 import { $, showToast } from './ui/common.js';
 import { renderSidebarAgents } from './ui/sidebar.js';
 import { renderDashboard } from './ui/dashboard.js';
@@ -60,11 +60,14 @@ async function init(){
   try {
     state.mcpItems = await window.hub.listMcp();
   } catch (err) { showToast('操作失败：' + err.message); }
+  try {
+    state.skillsItems = await window.hub.listSkills();
+  } catch (err) { showToast('操作失败：' + err.message); }
 
   renderSidebarAgents();
   renderDashboard();
   renderCountBar('mcp-countbar', state.mcpItems, 'mcp');
-  renderCountBar('skills-countbar', SKILLS_INSTALLED, 'skill');
+  renderCountBar('skills-countbar', state.skillsItems, 'skill');
   renderMatrix('mcp');
   renderMatrix('skill');
   renderPrompts();

@@ -54,61 +54,8 @@ export const MCP_PRESETS = [
 
 /* ---- Skills：中央库（SSOT） ---- */
 export const SSOT_DIR = '~/.harness-hub/skills';
-export const SKILLS_INSTALLED = [
-  {dir:'brainstorming', name:'brainstorming', desc:'将想法打磨为设计与规格：分类请求、澄清问题、产出设计文档', repo:'obra/superpowers', hasUpdate:false,
-   apps:{dsh:1,claude:1,codex:0,gemini:0,grok:0,opencode:0,hermes:0}},
-  {dir:'writing-plans', name:'writing-plans', desc:'为多步任务编写含审查检查点的实施计划', repo:'obra/superpowers', hasUpdate:true,
-   apps:{dsh:1,claude:1,codex:1,gemini:0,grok:0,opencode:0,hermes:0}},
-  {dir:'test-driven-development', name:'test-driven-development', desc:'TDD：先写失败测试，再写实现代码', repo:'obra/superpowers', hasUpdate:false,
-   apps:{dsh:1,claude:1,codex:0,gemini:0,grok:0,opencode:1,hermes:0}},
-  {dir:'systematic-debugging', name:'systematic-debugging', desc:'系统化调试：先定位根因，再提出修复', repo:'obra/superpowers', hasUpdate:false,
-   apps:{dsh:0,claude:1,codex:0,gemini:0,grok:0,opencode:0,hermes:0}},
-  {dir:'verification-before-completion', name:'verification-before-completion', desc:'完成前验证：运行命令、拿到证据再下结论', repo:'obra/superpowers', hasUpdate:false,
-   apps:{dsh:1,claude:1,codex:0,gemini:1,grok:0,opencode:0,hermes:0}},
-  {dir:'commit-message', name:'commit-message', desc:'生成规范化提交信息', repo:null, hasUpdate:false,
-   apps:{dsh:0,claude:1,codex:0,gemini:0,grok:0,opencode:0,hermes:0}},
-];
-
-export const SKILL_REPOS = [
-  {owner:'obra', name:'superpowers', branch:'main'},
-];
-
-/* 发现页（仓库模式） */
-export const SKILLS_DISCOVERY = [
-  {key:'executing-plans', name:'executing-plans', desc:'在有审查检查点的独立会话中执行书面实施计划', repo:'obra/superpowers'},
-  {key:'requesting-code-review', name:'requesting-code-review', desc:'完成任务后请求代码评审，验证工作满足需求', repo:'obra/superpowers'},
-  {key:'receiving-code-review', name:'receiving-code-review', desc:'接收代码评审反馈：先验证再实施建议', repo:'obra/superpowers'},
-  {key:'finishing-a-development-branch', name:'finishing-a-development-branch', desc:'实现完成后决定分支如何集成', repo:'obra/superpowers'},
-  {key:'dispatching-parallel-agents', name:'dispatching-parallel-agents', desc:'将独立任务并行分派给子代理执行', repo:'obra/superpowers'},
-  {key:'subagent-driven-development', name:'subagent-driven-development', desc:'在当前会话中用子代理执行实施计划', repo:'obra/superpowers'},
-  {key:'writing-skills', name:'writing-skills', desc:'创建与编辑可复用的 skill 指令集', repo:'obra/superpowers'},
-  {key:'using-git-worktrees', name:'using-git-worktrees', desc:'需要隔离工作区时使用 git worktree', repo:'obra/superpowers'},
-];
-
-/* 发现页（skills.sh 模式） */
-export const SKILLS_SH = [
-  {key:'pdf', name:'pdf', desc:'处理 PDF 文件：读取、编辑、搜索与格式转换', repo:'ananddtyagi/pdf-skill', installs:28435},
-  {key:'docx', name:'docx', desc:'创建与编辑 Word 文档', repo:'ananddtyagi/office-skill', installs:21532},
-  {key:'xlsx', name:'xlsx', desc:'Excel 电子表格读写与公式计算', repo:'ananddtyagi/office-skill', installs:19871},
-  {key:'pptx', name:'pptx', desc:'PowerPoint 演示文稿生成', repo:'ananddtyagi/office-skill', installs:12044},
-  {key:'browser-tools', name:'browser-tools', desc:'浏览器开发工具：控制台、网络与截图', repo:'AgentDeskAI/browser-tools-mcp', installs:9821},
-  {key:'webapp-testing', name:'webapp-testing', desc:'Web 应用端到端测试与可访问性检查', repo:'vercel-labs/webapp-testing', installs:6430},
-];
-
-/* Skill 卸载备份 */
-export const SKILL_BACKUPS = [
-  {backupId:'bk-1', name:'code-review', dir:'code-review', desc:'代码评审规范与检查清单',
-   createdAt:'2026-08-12 21:04', path:'~/.harness-hub/skill-backups/code-review-20260812'},
-  {backupId:'bk-2', name:'sql-optimizer', dir:'sql-optimizer', desc:'SQL 查询优化建议',
-   createdAt:'2026-08-02 10:37', path:'~/.harness-hub/skill-backups/sql-optimizer-20260802'},
-];
-
-/* 未纳管 Skill（导入用） */
-export const UNMANAGED_SKILLS = [
-  {dir:'pdf', name:'pdf', desc:'处理 PDF 文件：读取、编辑、搜索', foundIn:['claude','codex'], path:'~/.claude/skills/pdf'},
-  {dir:'api-doc-writer', name:'api-doc-writer', desc:'生成 API 接口文档', foundIn:['claude'], path:'~/.claude/skills/api-doc-writer'},
-  {dir:'changelog', name:'changelog', desc:'生成版本更新日志', foundIn:['opencode'], path:'~/.config/opencode/skills/changelog'},
-];
+// Skills 列表 / 备份 / 未纳管 / 仓库配置均已改为 IPC 拉取（state.skillsItems/skillBackups/
+// unmanagedSkills/skillRepos，G2 起不再内置 mock）；发现页数据由后端实时拉取。
 
 /* ---- 提示词库（每 harness 一套，单条激活） ---- */
 export const PROMPTS = {

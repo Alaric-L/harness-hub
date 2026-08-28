@@ -7,6 +7,12 @@ export const state = {
   agents: null,          // getAppInit().agents（G1 起填充，G3 消费）
   settings: null,        // getAppInit().settings（G1 起填充，G3 消费）
   mcpItems: [],          // IPC listMcp/saveMcp/toggleMcp/... 返回的统一库（不再内置 mock）
+  skillsItems: [],       // IPC listSkills/toggleSkill/uninstallSkill/importSkills/... 返回的统一库（G2 起不再内置 mock）
+  skillBackups: [],      // IPC listSkillBackups 返回的备份列表
+  unmanagedSkills: [],   // IPC listUnmanagedSkills 返回的未纳管列表
+  skillRepos: [],        // IPC listRepos/addRepo/removeRepo 返回的仓库配置
+  discoveredSkills: null, // 发现页仓库模式缓存（null=尚未加载）
+  shSkills: [],          // 发现页 skills.sh 模式缓存
   mcpQuery: '',
   skillQuery: '',
   discQuery: '',
