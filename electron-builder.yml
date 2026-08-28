@@ -2,6 +2,7 @@ appId: com.harnesshub.app
 productName: HarnessHub
 directories:
   buildResources: build
+  output: dist
 files:
   - out/**
   - '!**/.vscode/*'
@@ -10,8 +11,14 @@ files:
   - '!{tsconfig.json,tsconfig.node.json}'
   - '!{.gitignore,pnpm-lock.yaml}'
 win:
+  icon: build/icon.png
   target:
     - nsis
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  shortcutName: HarnessHub
+  # 安装界面语言：2052 = 简体中文（electron-builder LCID Dec）
+  language: 2052
+artifactName: ${productName}-${version}-Setup.${ext}
