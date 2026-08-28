@@ -4,6 +4,11 @@
 // 且 fs.lstatSync().isSymbolicLink() 对 junction 亦返回 true——检测/清理与 symlink 完全兼容。
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import { AGENTS, dataFile, resolveAgentPaths, settingsFile, skillBackupsDir, ssotSkillsDir } from '../paths'
+import type { HomeEnv } from '../paths'
+import { loadSettings, loadStore, saveStore } from '../store'
+import { parseSkillMd } from '../skillmd'
+import type { AgentId, SkillInstalled } from '../types'
 
 export type DeployMethod = 'auto' | 'symlink' | 'copy'
 export type DeployResult = 'symlink' | 'copy'
@@ -121,4 +126,135 @@ export async function deploySkill(
 export async function undeploySkill(targetDir: string): Promise<void> {
   if (!(await pathExists(targetDir))) return
   await fs.rm(targetDir, { recursive: true, force: true })
+}
+
+// ---- E2：卸载备份（结构对齐 cc-switch skill.rs:3490-3540，备份自描述不依赖库） ----
+
+/** E2 依赖注入点：data.json / settings.json / SSOT 目录 / 备份根目录；缺省走真实 home */
+export interface SkillCtx {
+  dataFile?: string
+  settingsFile?: string
+  ssotDir?: string
+  backupsDir?: string
+  env?: HomeEnv
+}
+
+export interface ResolvedSkillCtx {
+  dataFile: string
+  settingsFile: string
+  ssotDir: string
+  backupsDir: string
+  env: HomeEnv
+}
+
+export function resolveSkillCtx(ctx?: SkillCtx): ResolvedSkillCtx {
+  return {
+    dataFile: ctx?.dataFile ?? dataFile(),
+    settingsFile: ctx?.settingsFile ?? settingsFile(),
+    ssotDir: ctx?.ssotDir ?? ssotSkillsDir(),
+    backupsDir: ctx?.backupsDir ?? skillBackupsDir(),
+    env: ctx?.env ?? process.env
+  }
+}
+
+/** skill 目录名净化：非字母数字下划线横线替换为 _（对齐 cc-switch slug 语义） */
+export function sanitizeSkillDirName(name: string): string {
+  return name.replace(/[^A-Za-z0-9_-]/g, '_')
+}
+
+/** 本地时间 -> yyyyMMdd_HHmmss（备份目录名前缀；任务文档 E2 要求 '_' 分隔） */
+function timestamp(d: Date = new Date()): string {
+  const p = (n: number) => String(n).padStart(2, '0')
+  return (
+    `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}` +
+    `_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`
+  )
+}
+
+/** 备份 id：<yyyyMMdd_HHmmss>_<slug>；同秒撞名追加 _1、_2…… */
+async function nextBackupId(backupsDir: string, slug: string): Promise<string> {
+  const ts = timestamp()
+  let id = `${ts}_${slug}`
+  let n = 1
+  while (await pathExists(path.join(backupsDir, id))) {
+    id = `${ts}_${slug}_${n}`
+    n++
+  }
+  return id
+}
+
+/** 备份保留上限（对齐 cc-switch SKILL_BACKUP_RETAIN_COUNT） */
+const SKILL_BACKUP_RETAIN_COUNT = 20
+
+/** 按 mtime 淘汰最旧，仅保留最近 20 份备份目录；备份根不存在时 no-op */
+async function pruneSkillBackups(backupsDir: string): Promise<void> {
+  let entries
+  try {
+    entries = await fs.readdir(backupsDir, { withFileTypes: true })
+  } catch (err) {
+    if (isNotFound(err)) return
+    throw err
+  }
+  const dirs = entries.filter((e) => e.isDirectory()).map((e) => path.join(backupsDir, e.name))
+  if (dirs.length <= SKILL_BACKUP_RETAIN_COUNT) return
+  const statted = await Promise.all(
+    dirs.map(async (p) => ({ p, mtimeMs: (await fs.stat(p)).mtimeMs }))
+  )
+  statted.sort((a, b) => b.mtimeMs - a.mtimeMs || (a.p < b.p ? 1 : -1))
+  for (const { p } of statted.slice(SKILL_BACKUP_RETAIN_COUNT)) {
+    await fs.rm(p, { recursive: true, force: true })
+  }
+}
+
+/**
+ * E2 卸载：从所有启用 harness 移除部署 -> 备份 SSOT 目录到
+ * <backupsDir>/<yyyyMMdd_HHmmss>_<slug>/skill/ + meta.json（{name, desc, repo, backupCreatedAt, sourceDir, apps}）
+ * -> 删 SSOT 目录与库条目。settings.skillUninstallBackup=false 时直接删 SSOT（不产备份）。
+ */
+export async function uninstallSkill(dir: string, ctx?: SkillCtx): Promise<SkillInstalled[]> {
+  const c = resolveSkillCtx(ctx)
+  const data = loadStore(c.dataFile)
+  const entry = data.skills.find((s) => s.dir === dir)
+  if (!entry) throw new Error(`skill not found: ${dir}`)
+  const settings = loadSettings(c.settingsFile)
+  const source = path.join(c.ssotDir, dir)
+
+  // 1. 从所有启用 harness 移除部署
+  for (const agentId of Object.keys(entry.apps ?? {}) as AgentId[]) {
+    if (entry.apps[agentId]) {
+      const r = resolveAgentPaths(agentId, settings.dirOverrides, c.env)
+      await undeploySkill(path.join(r.skillsDir, dir))
+    }
+  }
+
+  // 2. 备份（开关开启时）：复制 SSOT -> 备份 skill/ + meta.json，随后按上限淘汰
+  if (settings.skillUninstallBackup) {
+    const md = parseSkillMd(source)
+    const backupDir = path.join(c.backupsDir, await nextBackupId(c.backupsDir, sanitizeSkillDirName(dir)))
+    await fs.mkdir(path.join(backupDir, 'skill'), { recursive: true })
+    await fs.cp(source, path.join(backupDir, 'skill'), { recursive: true })
+    await fs.writeFile(
+      path.join(backupDir, 'meta.json'),
+      JSON.stringify(
+        {
+          name: md?.name ?? entry.name,
+          desc: md?.desc ?? entry.desc,
+          repo: entry.repo,
+          backupCreatedAt: Date.now(),
+          sourceDir: dir,
+          apps: entry.apps ?? {}
+        },
+        null,
+        2
+      ),
+      'utf8'
+    )
+    await pruneSkillBackups(c.backupsDir)
+  }
+
+  // 3. 删 SSOT 目录与库条目
+  await fs.rm(source, { recursive: true, force: true })
+  data.skills = data.skills.filter((s) => s.dir !== dir)
+  await saveStore(c.dataFile, data)
+  return data.skills
 }
