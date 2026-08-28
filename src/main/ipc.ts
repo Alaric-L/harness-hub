@@ -21,12 +21,22 @@ import {
   listPrompts,
   savePrompt
 } from './services/prompts'
+import {
+  addRepo,
+  checkSkillUpdates,
+  installSkillFromRepo,
+  installSkillFromSh,
+  listDiscoveryRepos,
+  listRepos,
+  removeRepo,
+  searchSkillsSh,
+  updateSkill
+} from './services/discovery'
 import type {
   AgentId,
   AppSettings,
   McpItem,
   PromptItem,
-  RepoConfig,
   SkillBackup,
   SkillInstalled,
   UnmanagedSkill
@@ -185,7 +195,7 @@ ipcMain.handle(
 
 ipcMain.handle('hub:checkSkillUpdates', async () => {
   try {
-    return [] as SkillInstalled[] // TODO(Cx): 由 D/E/F/G 块实现
+    return await checkSkillUpdates()
   } catch (err) {
     throw new Error(errMessage(err))
   }
@@ -193,7 +203,7 @@ ipcMain.handle('hub:checkSkillUpdates', async () => {
 
 ipcMain.handle('hub:updateSkill', async (_event, dir: string) => {
   try {
-    return [] as SkillInstalled[] // TODO(Cx): 由 D/E/F/G 块实现
+    return await updateSkill(dir)
   } catch (err) {
     throw new Error(errMessage(err))
   }
@@ -203,7 +213,7 @@ ipcMain.handle('hub:updateSkill', async (_event, dir: string) => {
 
 ipcMain.handle('hub:listDiscoveryRepos', async () => {
   try {
-    return { skills: [] } // TODO(Cx): 由 D/E/F/G 块实现
+    return await listDiscoveryRepos()
   } catch (err) {
     throw new Error(errMessage(err))
   }
@@ -211,7 +221,7 @@ ipcMain.handle('hub:listDiscoveryRepos', async () => {
 
 ipcMain.handle('hub:searchSkillsSh', async (_event, q: string) => {
   try {
-    return [] // TODO(Cx): 由 D/E/F/G 块实现
+    return await searchSkillsSh(q)
   } catch (err) {
     throw new Error(errMessage(err))
   }
@@ -219,7 +229,7 @@ ipcMain.handle('hub:searchSkillsSh', async (_event, q: string) => {
 
 ipcMain.handle('hub:listRepos', async () => {
   try {
-    return [] as RepoConfig[] // TODO(Cx): 由 D/E/F/G 块实现
+    return listRepos()
   } catch (err) {
     throw new Error(errMessage(err))
   }
@@ -227,7 +237,7 @@ ipcMain.handle('hub:listRepos', async () => {
 
 ipcMain.handle('hub:addRepo', async (_event, url: string, branch: string) => {
   try {
-    return [] as RepoConfig[] // TODO(Cx): 由 D/E/F/G 块实现
+    return await addRepo(url, branch)
   } catch (err) {
     throw new Error(errMessage(err))
   }
@@ -235,7 +245,7 @@ ipcMain.handle('hub:addRepo', async (_event, url: string, branch: string) => {
 
 ipcMain.handle('hub:removeRepo', async (_event, owner: string, name: string) => {
   try {
-    return [] as RepoConfig[] // TODO(Cx): 由 D/E/F/G 块实现
+    return await removeRepo(owner, name)
   } catch (err) {
     throw new Error(errMessage(err))
   }
@@ -245,7 +255,7 @@ ipcMain.handle(
   'hub:installSkillFromRepo',
   async (_event, owner: string, repo: string, branch: string, skillDir: string) => {
     try {
-      return [] as SkillInstalled[] // TODO(Cx): 由 D/E/F/G 块实现
+      return await installSkillFromRepo(owner, repo, branch, skillDir)
     } catch (err) {
       throw new Error(errMessage(err))
     }
@@ -254,7 +264,7 @@ ipcMain.handle(
 
 ipcMain.handle('hub:installSkillFromSh', async (_event, key: string, repo: string) => {
   try {
-    return [] as SkillInstalled[] // TODO(Cx): 由 D/E/F/G 块实现
+    return await installSkillFromSh(key, repo)
   } catch (err) {
     throw new Error(errMessage(err))
   }
