@@ -1,6 +1,6 @@
-/* ================= 聚合入口（B2：主视图 mock 渲染 / B3：表单与弹窗全量初始化） ================= */
+/* ================= 聚合入口（B2：主视图 mock 渲染 / B3：表单与弹窗全量初始化 / G1：启动接真实后端） ================= */
 import { state } from './state.js';
-import { AGENT_BY, MCP_ITEMS, SKILLS_INSTALLED } from './data.js';
+import { AGENT_BY, SKILLS_INSTALLED } from './data.js';
 import { $, showToast } from './ui/common.js';
 import { renderSidebarAgents } from './ui/sidebar.js';
 import { renderDashboard } from './ui/dashboard.js';
@@ -50,13 +50,25 @@ $('search-input').addEventListener('input', e=>{
   if(state.currentView==='skills'){ state.skillQuery = q; if(state.skillsTab==='installed') applyMatrixFilters('skill'); }
 });
 
-/* ================= 初始化（原型 2002-2010 全量） ================= */
-renderSidebarAgents();
-renderDashboard();
-renderCountBar('mcp-countbar', MCP_ITEMS, 'mcp');
-renderCountBar('skills-countbar', SKILLS_INSTALLED, 'skill');
-renderMatrix('mcp');
-renderMatrix('skill');
-renderPrompts();
-renderAgents();
-renderDiscovery();
+/* ================= 初始化（G1：getAppInit + listMcp 拉真实数据后全量渲染，保持 B 块顺序） ================= */
+async function init(){
+  try {
+    const init = await window.hub.getAppInit();
+    state.agents = init.agents;
+    state.settings = init.settings;
+  } catch (err) { showToast('操作失败：' + err.message); }
+  try {
+    state.mcpItems = await window.hub.listMcp();
+  } catch (err) { showToast('操作失败：' + err.message); }
+
+  renderSidebarAgents();
+  renderDashboard();
+  renderCountBar('mcp-countbar', state.mcpItems, 'mcp');
+  renderCountBar('skills-countbar', SKILLS_INSTALLED, 'skill');
+  renderMatrix('mcp');
+  renderMatrix('skill');
+  renderPrompts();
+  renderAgents();
+  renderDiscovery();
+}
+init();

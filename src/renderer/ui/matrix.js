@@ -1,5 +1,5 @@
 /* ================= 计数徽章行（AppCountBar） / 矩阵表格 / 过滤 ================= */
-import { AGENTS, AGENT_BY, MCP_ITEMS, SKILLS_INSTALLED, SKILL_BACKUPS } from '../data.js';
+import { AGENTS, AGENT_BY, SKILLS_INSTALLED, SKILL_BACKUPS } from '../data.js';
 import { icon } from '../icons.js';
 import { $, showToast, askConfirm } from './common.js';
 import { state } from '../state.js';
@@ -23,11 +23,22 @@ export function renderCountBar(containerId, items, kind){
     <div class="count-badges">${badges}</div>
   </div>`;
   el.querySelectorAll('[data-bulk]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
+    btn.addEventListener('click', async ()=>{
       const agentId = btn.dataset.bulk;
       const agent = AGENT_BY(agentId);
       const allOn = items.length>0 && items.every(i=>i.apps[agentId]);
       const target = allOn ? 0 : 1;
+      if(kind==='mcp'){
+        try {
+          state.mcpItems = await window.hub.bulkToggleMcp(agentId, !!target);
+          showToast(`已在 ${agent.name} 中${target?'全部开启':'全部关闭'}${kind==='mcp'?' MCP':' Skills'}`);
+          renderCountBar(containerId, state.mcpItems, kind);
+          renderMatrix(kind);
+        } catch (err) {
+          showToast('操作失败：' + err.message);
+        }
+        return;
+      }
       items.forEach(i=> i.apps[agentId] = target);
       showToast(`已在 ${agent.name} 中${target?'全部开启':'全部关闭'}${kind==='mcp'?' MCP':' Skills'}`);
       renderCountBar(containerId, items, kind);
@@ -39,7 +50,7 @@ export function renderCountBar(containerId, items, kind){
 export function renderMatrix(kind){
   const tableId = kind==='mcp' ? 'mcp-table' : 'skills-table';
   const table = $(tableId);
-  const items = kind==='mcp' ? MCP_ITEMS : SKILLS_INSTALLED;
+  const items = kind==='mcp' ? state.mcpItems : SKILLS_INSTALLED;
 
   const thead = `<thead><tr>
     <th class="col-name">名称 / 描述</th>
@@ -101,27 +112,35 @@ export function renderMatrix(kind){
 
   table.innerHTML = thead + `<tbody>${rows}</tbody>`;
 
-  // 开关
+  // 开关（MCP 走真实后端；Skill 仍为 mock，G2 接线）
   table.querySelectorAll('input[type="checkbox"][data-toggle]').forEach(cb=>{
-    cb.addEventListener('change', e=>{
+    cb.addEventListener('change', async e=>{
       const rowId = e.target.dataset.toggle;
       const agent = e.target.dataset.agent;
       const k = e.target.dataset.kind;
-      const it = (k==='mcp' ? MCP_ITEMS : SKILLS_INSTALLED).find(i=> (k==='mcp' ? i.id : i.dir) === rowId);
-      if(!it) return;
-      it.apps[agent] = e.target.checked ? 1 : 0;
       const agentObj = AGENT_BY(agent);
       if(k==='mcp'){
-        showToast(e.target.checked
-          ? `已在 ${agentObj.name} 中开启 ${rowId}（写入 ${agentObj.mcpPath}）`
-          : `已在 ${agentObj.name} 中关闭 ${rowId}（从 ${agentObj.mcpPath} 移除）`);
-        renderCountBar('mcp-countbar', MCP_ITEMS, 'mcp');
-      } else {
-        showToast(e.target.checked
-          ? `已在 ${agentObj.name} 中开启 Skill ${rowId}（部署到 ${agentObj.skillsDir}）`
-          : `已在 ${agentObj.name} 中关闭 Skill ${rowId}（移除部署）`);
-        renderCountBar('skills-countbar', SKILLS_INSTALLED, 'skill');
+        const on = e.target.checked;
+        try {
+          state.mcpItems = await window.hub.toggleMcp(rowId, agent, on);
+          showToast(on
+            ? `已在 ${agentObj.name} 中开启 ${rowId}（写入 ${agentObj.mcpPath}）`
+            : `已在 ${agentObj.name} 中关闭 ${rowId}（从 ${agentObj.mcpPath} 移除）`);
+          renderCountBar('mcp-countbar', state.mcpItems, 'mcp');
+        } catch (err) {
+          e.target.checked = !on;   // 失败回滚 checkbox
+          showToast('操作失败：' + err.message);
+        }
+        applyMatrixFilters(k);
+        return;
       }
+      const it = SKILLS_INSTALLED.find(i=>i.dir===rowId);
+      if(!it) return;
+      it.apps[agent] = e.target.checked ? 1 : 0;
+      showToast(e.target.checked
+        ? `已在 ${agentObj.name} 中开启 Skill ${rowId}（部署到 ${agentObj.skillsDir}）`
+        : `已在 ${agentObj.name} 中关闭 Skill ${rowId}（移除部署）`);
+      renderCountBar('skills-countbar', SKILLS_INSTALLED, 'skill');
       applyMatrixFilters(k);
     });
   });
@@ -141,14 +160,18 @@ export function renderMatrix(kind){
   });
   table.querySelectorAll('[data-del]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
-      const item = MCP_ITEMS.find(i=>i.id===btn.dataset.del);
-      askConfirm('删除 MCP', `确定删除「${item.name}」吗？将从所有启用了它的 harness 配置文件中移除。`, ()=>{
-        const idx = MCP_ITEMS.indexOf(item);
-        MCP_ITEMS.splice(idx,1);
-        renderCountBar('mcp-countbar', MCP_ITEMS, 'mcp');
-        renderMatrix('mcp');
-        renderDashboard();
-        showToast(`已删除 MCP「${item.name}」，并从各 harness 配置中移除`);
+      const item = state.mcpItems.find(i=>i.id===btn.dataset.del);
+      if(!item) return;
+      askConfirm('删除 MCP', `确定删除「${item.name}」吗？将从所有启用了它的 harness 配置文件中移除。`, async ()=>{
+        try {
+          state.mcpItems = await window.hub.deleteMcp(item.id);
+          renderCountBar('mcp-countbar', state.mcpItems, 'mcp');
+          renderMatrix('mcp');
+          renderDashboard();
+          showToast(`已删除 MCP「${item.name}」，并从各 harness 配置中移除`);
+        } catch (err) {
+          showToast('操作失败：' + err.message);
+        }
       }, '删除');
     });
   });

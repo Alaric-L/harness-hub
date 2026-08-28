@@ -1,5 +1,5 @@
-/* ================= MCP 表单（迁移原型 1315-1449；mcpEditingId 经 state） ================= */
-import { AGENTS, MCP_ITEMS, MCP_PRESETS } from '../data.js';
+/* ================= MCP 表单（迁移原型 1315-1449；mcpEditingId 经 state；G1：保存/导入接真实后端） ================= */
+import { AGENTS, MCP_PRESETS } from '../data.js';
 import { icon } from '../icons.js';
 import { $, showToast } from './common.js';
 import { state } from '../state.js';
@@ -8,7 +8,7 @@ import { renderDashboard } from './dashboard.js';
 
 export function openMcpForm(editingId){
   state.mcpEditingId = editingId || null;
-  const editing = editingId ? MCP_ITEMS.find(i=>i.id===editingId) : null;
+  const editing = editingId ? state.mcpItems.find(i=>i.id===editingId) : null;
 
   $('mf-title').textContent = editing ? '编辑 MCP' : '新增 MCP';
   $('mf-presets-block').style.display = editing ? 'none' : 'block';
@@ -43,7 +43,7 @@ export function openMcpForm(editingId){
       }
       const p = MCP_PRESETS[idx];
       let id = p.id, n = 1;
-      while(MCP_ITEMS.some(i=>i.id===id)) id = `${p.id}-${++n}`;
+      while(state.mcpItems.some(i=>i.id===id)) id = `${p.id}-${++n}`;
       $('mf-id').value = id;
       $('mf-name').value = p.id;
       $('mf-desc').value = p.desc;
@@ -85,7 +85,7 @@ $('mf-json').addEventListener('input', updateJsonStatus);
 
 $('mf-id').addEventListener('input', ()=>{
   const v = $('mf-id').value.trim();
-  $('mf-id-err').textContent = (!state.mcpEditingId && v && MCP_ITEMS.some(i=>i.id===v)) ? 'ID 已存在' : '';
+  $('mf-id-err').textContent = (!state.mcpEditingId && v && state.mcpItems.some(i=>i.id===v)) ? 'ID 已存在' : '';
 });
 
 $('mf-meta-toggle').addEventListener('click', ()=>{
@@ -98,10 +98,10 @@ $('mf-meta-toggle').addEventListener('click', ()=>{
 $('btn-add-mcp').addEventListener('click', ()=> openMcpForm(null));
 $('mf-cancel').addEventListener('click', ()=> $('modal-mcp-form').classList.remove('open'));
 
-$('mf-save').addEventListener('click', ()=>{
+$('mf-save').addEventListener('click', async ()=>{
   const id = $('mf-id').value.trim();
   if(!id){ $('mf-id-err').textContent='请填写 ID'; return; }
-  if(!state.mcpEditingId && MCP_ITEMS.some(i=>i.id===id)){ $('mf-id-err').textContent='ID 已存在'; return; }
+  if(!state.mcpEditingId && state.mcpItems.some(i=>i.id===id)){ $('mf-id-err').textContent='ID 已存在'; return; }
   const {ok, spec} = validateMcpJson();
   if(!ok || !spec){ showToast('请修正配置 JSON 后再保存'); return; }
 
@@ -109,34 +109,46 @@ $('mf-save').addEventListener('click', ()=>{
   document.querySelectorAll('#mf-apps input[data-app]').forEach(cb=> apps[cb.dataset.app] = cb.checked ? 1 : 0);
   const homepage = $('mf-homepage').value.trim();
   const docs = $('mf-docs').value.trim();
+  const name = $('mf-name').value.trim() || id;
 
-  if(state.mcpEditingId){
-    const item = MCP_ITEMS.find(i=>i.id===state.mcpEditingId);
-    item.name = $('mf-name').value.trim() || id;
-    item.desc = $('mf-desc').value.trim() || item.desc;
-    item.tag = $('mf-tags').value.trim() || item.tag;
-    item.homepage = homepage || undefined;
-    item.docs = docs || undefined;
-    item.spec = spec;
-    item.apps = apps;
-    showToast(`已保存 MCP「${id}」，变更已写入启用的 harness 配置`);
-  } else {
-    MCP_ITEMS.push({
-      id, name: $('mf-name').value.trim() || id,
-      desc: $('mf-desc').value.trim() || '（无描述）',
-      tag: $('mf-tags').value.trim() || '自定义',
-      homepage: homepage || undefined,
-      docs: docs || undefined,
-      spec, apps,
-    });
-    showToast(`已创建 MCP「${id}」并写入启用的 harness 配置`);
+  // 编辑：prevApps = 原库内 apps（供后端差量写入关闭的 harness）；新增：undefined
+  const prevApps = state.mcpEditingId
+    ? (()=>{ const it = state.mcpItems.find(i=>i.id===state.mcpEditingId); return it ? {...it.apps} : undefined; })()
+    : undefined;
+  const item = state.mcpEditingId
+    ? (()=>{
+        const it = state.mcpItems.find(i=>i.id===state.mcpEditingId) || {};
+        return { id, name, desc: $('mf-desc').value.trim() || it.desc, tag: $('mf-tags').value.trim() || it.tag,
+                 homepage: homepage || undefined, docs: docs || undefined, spec, apps };
+      })()
+    : { id, name, desc: $('mf-desc').value.trim() || '（无描述）', tag: $('mf-tags').value.trim() || '自定义',
+        homepage: homepage || undefined, docs: docs || undefined, spec, apps };
+
+  try {
+    state.mcpItems = await window.hub.saveMcp(item, prevApps);
+    $('modal-mcp-form').classList.remove('open');
+    renderCountBar('mcp-countbar', state.mcpItems, 'mcp');
+    renderMatrix('mcp');
+    renderDashboard();
+    showToast(state.mcpEditingId
+      ? `已保存 MCP「${id}」，变更已写入启用的 harness 配置`
+      : `已创建 MCP「${id}」并写入启用的 harness 配置`);
+  } catch (err) {
+    showToast('操作失败：' + err.message);
   }
-  $('modal-mcp-form').classList.remove('open');
-  renderCountBar('mcp-countbar', MCP_ITEMS, 'mcp');
-  renderMatrix('mcp');
-  renderDashboard();
 });
 
-$('btn-import-mcp').addEventListener('click', ()=>{
-  showToast('已从各 harness 导入 2 个新 MCP（tavily 已存在，仅标记 DSH 启用）');
+$('btn-import-mcp').addEventListener('click', async ()=>{
+  try {
+    const { added, marked } = await window.hub.importMcpFromHarnesses();
+    state.mcpItems = await window.hub.listMcp();
+    renderCountBar('mcp-countbar', state.mcpItems, 'mcp');
+    renderMatrix('mcp');
+    renderDashboard();
+    showToast(marked.length > 0
+      ? `已从各 harness 导入 ${added.length} 个新 MCP（${marked.length} 个已存在，仅标记启用）`
+      : `已从各 harness 导入 ${added.length} 个新 MCP`);
+  } catch (err) {
+    showToast('操作失败：' + err.message);
+  }
 });

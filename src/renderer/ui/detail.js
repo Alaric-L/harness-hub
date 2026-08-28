@@ -1,13 +1,12 @@
-/* ================= 详情面板 ================= */
-import { AGENTS, AGENT_BY, MCP_ITEMS, SKILLS_INSTALLED, SSOT_DIR } from '../data.js';
+/* ================= 详情面板（G1：MCP 预览改走 previewMcp 真实后端） ================= */
+import { AGENTS, AGENT_BY, SKILLS_INSTALLED, SSOT_DIR } from '../data.js';
 import { icon } from '../icons.js';
-import { $, esc } from './common.js';
+import { $, esc, showToast } from './common.js';
 import { state } from '../state.js';
-import { specPreview } from '../format.js';
 
 export function openDetail(itemId, kind){
   const isMcp = kind==='mcp';
-  const item = isMcp ? MCP_ITEMS.find(i=>i.id===itemId) : SKILLS_INSTALLED.find(i=>i.dir===itemId);
+  const item = isMcp ? state.mcpItems.find(i=>i.id===itemId) : SKILLS_INSTALLED.find(i=>i.dir===itemId);
   state.detailCtx = {kind, id: itemId};
   $('detail-title').textContent = item.name;
   $('detail-sub').textContent = `${item.desc} · ${isMcp?'MCP 服务':'Skill'}`;
@@ -32,9 +31,24 @@ export function openDetail(itemId, kind){
         <div class="detail-label">配置文件</div>
         <div class="code-block">${esc(agent.mcpPath)}</div>
         <div class="detail-label">写入内容预览（${agent.mcpFormat === 'yaml-patch' ? 'YAML patch 插件条目' : agent.mcpFormat.toUpperCase()}）</div>
-        <div class="code-block">${esc(enabled ? specPreview(agent, item) : `// ${item.id} 未在 ${agent.name} 中启用`)}</div>`;
-    } else {
-      html = `
+        <div class="code-block" id="detail-preview">加载中…</div>`;
+      $('detail-body').innerHTML = html;
+      if(enabled){
+        window.hub.previewMcp(itemId, agentId).then(text=>{
+          const el = $('detail-preview');
+          if(el) el.textContent = text;
+        }).catch(err=>{
+          const el = $('detail-preview');
+          if(el) el.textContent = '';
+          showToast('操作失败：' + err.message);
+        });
+      } else {
+        const el = $('detail-preview');
+        if(el) el.textContent = `// ${item.id} 未在 ${agent.name} 中启用`;
+      }
+      return;
+    }
+    html = `
         <div class="detail-status ${enabled?'on':'off'}">${enabled?'✓ 已部署到 '+agent.short:'○ 未部署'}</div>
         <div class="detail-label">部署位置</div>
         <div class="code-block">${esc(agent.skillsDir + '/' + item.dir + (enabled ? '\n  -> ' + SSOT_DIR + '/' + item.dir : ''))}</div>
@@ -45,7 +59,6 @@ description: ${item.desc}
 ---
 
 （Skill 指令正文，来自 ${item.repo || '本地'}）</div>`;
-    }
     $('detail-body').innerHTML = html;
   }
 

@@ -24,42 +24,7 @@ export const AGENTS = [
 ];
 export function AGENT_BY(id){ return AGENTS.find(a=>a.id===id); }
 
-/* ---- MCP 统一库 ---- */
-export const MCP_ITEMS = [
-  {id:'tavily', name:'tavily', desc:'联网搜索能力（Tavily API）', tag:'搜索',
-   homepage:'https://tavily.com', docs:'https://docs.tavily.com/documentation/api-reference/mcp',
-   spec:{type:'http', url:'https://mcp.tavily.com/mcp/?tavilyApiKey=***'},
-   apps:{dsh:1,claude:1,codex:0,gemini:1,grok:0,opencode:0,hermes:0}},
-  {id:'dbx', name:'dbx', desc:'数据库连接、查询与表结构管理', tag:'数据库',
-   homepage:'https://github.com/dbx-app/mcp-server',
-   spec:{type:'stdio', command:'npx', args:['-y','@dbx-app/mcp-server@latest']},
-   apps:{dsh:1,claude:1,codex:1,gemini:0,grok:0,opencode:0,hermes:0}},
-  {id:'playwright', name:'playwright', desc:'浏览器自动化与网页操作', tag:'自动化',
-   homepage:'https://playwright.dev', docs:'https://github.com/microsoft/playwright-mcp',
-   spec:{type:'stdio', command:'npx', args:['-y','@playwright/mcp@latest']},
-   apps:{dsh:1,claude:1,codex:1,gemini:1,grok:0,opencode:1,hermes:0}},
-  {id:'fetch', name:'fetch', desc:'网页抓取与 Markdown 格式化输出', tag:'网络',
-   homepage:'https://github.com/modelcontextprotocol/servers/tree/main/src/fetch',
-   spec:{type:'stdio', command:'uvx', args:['mcp-server-fetch']},
-   apps:{dsh:1,claude:0,codex:0,gemini:0,grok:0,opencode:0,hermes:0}},
-  {id:'context7', name:'context7', desc:'为代码生成注入最新版库文档', tag:'代码',
-   homepage:'https://context7.com',
-   spec:{type:'http', url:'https://mcp.context7.com/mcp'},
-   apps:{dsh:0,claude:1,codex:1,gemini:0,grok:0,opencode:0,hermes:0}},
-  {id:'sequential-thinking', name:'sequential-thinking', desc:'结构化多步推理与思维链', tag:'思考',
-   homepage:'https://github.com/modelcontextprotocol/servers/tree/main/src/sequentialthinking',
-   spec:{type:'stdio', command:'npx', args:['-y','@modelcontextprotocol/server-sequential-thinking']},
-   apps:{dsh:0,claude:1,codex:0,gemini:0,grok:0,opencode:0,hermes:0}},
-  {id:'github', name:'github', desc:'仓库、Issue、PR 与代码评审操作', tag:'代码',
-   homepage:'https://github.com/github/github-mcp-server', docs:'https://github.com/github/github-mcp-server#readme',
-   spec:{type:'http', url:'https://api.githubcopilot.com/mcp/'},
-   apps:{dsh:0,claude:1,codex:1,gemini:0,grok:1,opencode:1,hermes:0}},
-  {id:'filesystem', name:'filesystem', desc:'本地文件读写访问', tag:'文件系统',
-   homepage:'https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem',
-   spec:{type:'stdio', command:'npx', args:['-y','@modelcontextprotocol/server-filesystem','D:\\Code']},
-   apps:{dsh:0,claude:1,codex:0,gemini:0,grok:0,opencode:0,hermes:1}},
-];
-
+/* ---- MCP 统一库：数据改为 IPC 拉取（state.mcpItems），不再内置 mock ---- */
 export const MCP_PRESETS = [
   {id:'playwright', name:'playwright', desc:'浏览器自动化与网页操作', tag:'自动化',
    homepage:'https://playwright.dev', docs:'https://github.com/microsoft/playwright-mcp',

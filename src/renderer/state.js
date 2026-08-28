@@ -4,6 +4,9 @@ export const state = {
   skillsTab: 'installed',
   discSource: 'repos',
   currentPromptAgent: 'dsh',
+  agents: null,          // getAppInit().agents（G1 起填充，G3 消费）
+  settings: null,        // getAppInit().settings（G1 起填充，G3 消费）
+  mcpItems: [],          // IPC listMcp/saveMcp/toggleMcp/... 返回的统一库（不再内置 mock）
   mcpQuery: '',
   skillQuery: '',
   discQuery: '',
