@@ -1,10 +1,15 @@
-/* ================= 聚合入口（B2：主视图 mock 渲染） ================= */
+/* ================= 聚合入口（B2：主视图 mock 渲染 / B3：表单与弹窗全量初始化） ================= */
 import { state } from './state.js';
-import { MCP_ITEMS, SKILLS_INSTALLED } from './data.js';
-import { $ } from './ui/common.js';
+import { AGENT_BY, MCP_ITEMS, SKILLS_INSTALLED } from './data.js';
+import { $, showToast } from './ui/common.js';
 import { renderSidebarAgents } from './ui/sidebar.js';
 import { renderDashboard } from './ui/dashboard.js';
 import { renderCountBar, renderMatrix, applyMatrixFilters } from './ui/matrix.js';
+import { renderPrompts } from './ui/prompts.js';
+import { renderAgents } from './ui/agents.js';
+import { renderDiscovery } from './ui/skills.js';
+import './ui/wizard.js';
+import './ui/settings.js';
 
 /* ================= 视图切换 ================= */
 const viewMeta = {
@@ -29,9 +34,15 @@ function switchView(v){
   $('search-box').style.display = viewMeta[v].search ? 'flex' : 'none';
 }
 
-/* 侧栏 harness 点击 -> 跳到该 harness 的提示词库
-   TODO(B3): 依赖 renderPrompts，B3 迁移 `ui/prompts.js` 后在此绑定
-   （原型 1986-1993 行） */
+/* 侧栏 harness 点击 -> 跳到该 harness 的提示词库（原型 1986-1993，B3 接通 renderPrompts） */
+$('sidebar-agent-list').addEventListener('click', e=>{
+  const row = e.target.closest('.agent-row');
+  if(!row) return;
+  state.currentPromptAgent = row.dataset.agent;
+  switchView('prompts');
+  renderPrompts();
+  showToast(`已切换到 ${AGENT_BY(state.currentPromptAgent).name} 的提示词库`);
+});
 
 /* ================= 顶栏搜索（Skills 已安装视图） ================= */
 $('search-input').addEventListener('input', e=>{
@@ -39,10 +50,13 @@ $('search-input').addEventListener('input', e=>{
   if(state.currentView==='skills'){ state.skillQuery = q; if(state.skillsTab==='installed') applyMatrixFilters('skill'); }
 });
 
-/* ================= 初始化（原型 2002-2008；renderPrompts/renderAgents/renderDiscovery 属 B3） ================= */
+/* ================= 初始化（原型 2002-2010 全量） ================= */
 renderSidebarAgents();
 renderDashboard();
 renderCountBar('mcp-countbar', MCP_ITEMS, 'mcp');
 renderCountBar('skills-countbar', SKILLS_INSTALLED, 'skill');
 renderMatrix('mcp');
 renderMatrix('skill');
+renderPrompts();
+renderAgents();
+renderDiscovery();
