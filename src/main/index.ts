@@ -1,5 +1,6 @@
 import { app, BrowserWindow } from 'electron'
 import { join } from 'path'
+import './ipc' // 副作用注册：全部 hub:<name> IPC 通道（见 src/main/ipc.ts）
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({

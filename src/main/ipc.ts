@@ -1,0 +1,353 @@
+// src/main/ipc.ts —— IPC API 契约全部 hub:<name> 通道注册（见任务文档「IPC API 契约」）
+// 副作用模块：src/main/index.ts 顶层 `import './ipc'` 即完成全部注册，无需调用。
+// 真实实现：getAppInit / getSettings / setSettings / setDirOverride 已接通 store；
+// 其余通道按契约返回类型返回安全空默认值，由 D/E/F/G 块实现。
+import { ipcMain } from 'electron'
+import { AGENTS, settingsFile } from './paths'
+import { loadSettings, saveSettings } from './store'
+import type {
+  AgentId,
+  AppSettings,
+  McpItem,
+  PromptItem,
+  RepoConfig,
+  SkillBackup,
+  SkillInstalled,
+  UnmanagedSkill
+} from './types'
+
+/** 统一错误处理：任意异常转为可读消息（渲染层 toast 展示用） */
+function errMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err)
+}
+
+// ---- 启动 ----
+
+ipcMain.handle('hub:getAppInit', async () => {
+  try {
+    // loadSettings 为同步函数，直接调用（store.ts）；返回 7 agents + settings
+    return { agents: AGENTS, settings: loadSettings(settingsFile()) }
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+// ---- MCP ----
+
+ipcMain.handle('hub:listMcp', async () => {
+  try {
+    return [] as McpItem[] // TODO(Cx): 由 D/E/F/G 块实现
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+ipcMain.handle('hub:saveMcp', async (_event, item: McpItem, prevApps?: Record<AgentId, boolean>) => {
+  try {
+    return [] as McpItem[] // TODO(Cx): 由 D/E/F/G 块实现
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+ipcMain.handle('hub:deleteMcp', async (_event, id: string) => {
+  try {
+    return [] as McpItem[] // TODO(Cx): 由 D/E/F/G 块实现
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+ipcMain.handle('hub:toggleMcp', async (_event, id: string, agentId: AgentId, on: boolean) => {
+  try {
+    return [] as McpItem[] // TODO(Cx): 由 D/E/F/G 块实现
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+ipcMain.handle('hub:bulkToggleMcp', async (_event, agentId: AgentId, on: boolean) => {
+  try {
+    return [] as McpItem[] // TODO(Cx): 由 D/E/F/G 块实现
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+ipcMain.handle('hub:importMcpFromHarnesses', async () => {
+  try {
+    return { added: [], marked: [] } // TODO(Cx): 由 D/E/F/G 块实现
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+ipcMain.handle('hub:previewMcp', async (_event, id: string, agentId: AgentId) => {
+  try {
+    return '' // TODO(Cx): 由 D/E/F/G 块实现
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+// ---- Skills ----
+
+ipcMain.handle('hub:listSkills', async () => {
+  try {
+    return [] as SkillInstalled[] // TODO(Cx): 由 D/E/F/G 块实现
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+ipcMain.handle('hub:toggleSkill', async (_event, dir: string, agentId: AgentId, on: boolean) => {
+  try {
+    return [] as SkillInstalled[] // TODO(Cx): 由 D/E/F/G 块实现
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+ipcMain.handle('hub:uninstallSkill', async (_event, dir: string) => {
+  try {
+    return [] as SkillInstalled[] // TODO(Cx): 由 D/E/F/G 块实现
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+ipcMain.handle('hub:listSkillBackups', async () => {
+  try {
+    return [] as SkillBackup[] // TODO(Cx): 由 D/E/F/G 块实现
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+ipcMain.handle('hub:restoreSkillBackup', async (_event, backupId: string, deploy: boolean) => {
+  try {
+    return [] as SkillBackup[] // TODO(Cx): 由 D/E/F/G 块实现
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+ipcMain.handle('hub:deleteSkillBackup', async (_event, backupId: string) => {
+  try {
+    return [] as SkillBackup[] // TODO(Cx): 由 D/E/F/G 块实现
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+ipcMain.handle('hub:installSkillZip', async () => {
+  try {
+    return [] as SkillInstalled[] // TODO(Cx): 由 D/E/F/G 块实现（内部调 dialog.showOpenDialog）
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+ipcMain.handle('hub:listUnmanagedSkills', async () => {
+  try {
+    return [] as UnmanagedSkill[] // TODO(Cx): 由 D/E/F/G 块实现
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+ipcMain.handle(
+  'hub:importSkills',
+  async (_event, items: { dir: string; apps: Partial<Record<AgentId, boolean>> }[]) => {
+    try {
+      return [] as SkillInstalled[] // TODO(Cx): 由 D/E/F/G 块实现
+    } catch (err) {
+      throw new Error(errMessage(err))
+    }
+  }
+)
+
+ipcMain.handle('hub:checkSkillUpdates', async () => {
+  try {
+    return [] as SkillInstalled[] // TODO(Cx): 由 D/E/F/G 块实现
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+ipcMain.handle('hub:updateSkill', async (_event, dir: string) => {
+  try {
+    return [] as SkillInstalled[] // TODO(Cx): 由 D/E/F/G 块实现
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+// ---- 发现 ----
+
+ipcMain.handle('hub:listDiscoveryRepos', async () => {
+  try {
+    return { skills: [] } // TODO(Cx): 由 D/E/F/G 块实现
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+ipcMain.handle('hub:searchSkillsSh', async (_event, q: string) => {
+  try {
+    return [] // TODO(Cx): 由 D/E/F/G 块实现
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+ipcMain.handle('hub:listRepos', async () => {
+  try {
+    return [] as RepoConfig[] // TODO(Cx): 由 D/E/F/G 块实现
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+ipcMain.handle('hub:addRepo', async (_event, url: string, branch: string) => {
+  try {
+    return [] as RepoConfig[] // TODO(Cx): 由 D/E/F/G 块实现
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+ipcMain.handle('hub:removeRepo', async (_event, owner: string, name: string) => {
+  try {
+    return [] as RepoConfig[] // TODO(Cx): 由 D/E/F/G 块实现
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+ipcMain.handle(
+  'hub:installSkillFromRepo',
+  async (_event, owner: string, repo: string, branch: string, skillDir: string) => {
+    try {
+      return [] as SkillInstalled[] // TODO(Cx): 由 D/E/F/G 块实现
+    } catch (err) {
+      throw new Error(errMessage(err))
+    }
+  }
+)
+
+ipcMain.handle('hub:installSkillFromSh', async (_event, key: string, repo: string) => {
+  try {
+    return [] as SkillInstalled[] // TODO(Cx): 由 D/E/F/G 块实现
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+// ---- 提示词 ----
+
+ipcMain.handle('hub:listPrompts', async (_event, agentId: AgentId) => {
+  try {
+    return [] as PromptItem[] // TODO(Cx): 由 D/E/F/G 块实现
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+ipcMain.handle('hub:savePrompt', async (_event, agentId: AgentId, item: PromptItem) => {
+  try {
+    return [] as PromptItem[] // TODO(Cx): 由 D/E/F/G 块实现
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+ipcMain.handle('hub:deletePrompt', async (_event, agentId: AgentId, id: string) => {
+  try {
+    return [] as PromptItem[] // TODO(Cx): 由 D/E/F/G 块实现
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+ipcMain.handle('hub:enablePrompt', async (_event, agentId: AgentId, id: string) => {
+  try {
+    return [] as PromptItem[] // TODO(Cx): 由 D/E/F/G 块实现（含 live 回填）
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+ipcMain.handle('hub:disablePrompt', async (_event, agentId: AgentId) => {
+  try {
+    return [] as PromptItem[] // TODO(Cx): 由 D/E/F/G 块实现
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+ipcMain.handle('hub:copyPrompt', async (_event, agentId: AgentId, id: string, targets: AgentId[]) => {
+  try {
+    return { copiedTo: [] as AgentId[] } // TODO(Cx): 由 D/E/F/G 块实现
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+// ---- Harness 管理与设置 ----
+
+ipcMain.handle('hub:setDirOverride', async (_event, agentId: AgentId, dir: string | null) => {
+  try {
+    const settings = loadSettings(settingsFile())
+    if (dir === null) {
+      delete settings.dirOverrides[agentId]
+    } else {
+      settings.dirOverrides[agentId] = dir
+    }
+    await saveSettings(settingsFile(), settings)
+    return settings
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+ipcMain.handle('hub:browseDir', async (_event, agentId: AgentId) => {
+  try {
+    return null // TODO(Cx): 由 D/E/F/G 块实现（内部调 dialog.showOpenDialog）
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+ipcMain.handle('hub:exportData', async () => {
+  try {
+    return '' // TODO(Cx): 由 D/E/F/G 块实现
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+ipcMain.handle('hub:importData', async () => {
+  try {
+    return '' // TODO(Cx): 由 D/E/F/G 块实现
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+ipcMain.handle('hub:getSettings', async () => {
+  try {
+    return loadSettings(settingsFile())
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+ipcMain.handle('hub:setSettings', async (_event, s: AppSettings) => {
+  try {
+    await saveSettings(settingsFile(), s)
+    return s
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
