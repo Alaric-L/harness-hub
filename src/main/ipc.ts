@@ -5,6 +5,15 @@
 import { ipcMain } from 'electron'
 import { AGENTS, settingsFile } from './paths'
 import { loadSettings, saveSettings } from './store'
+import {
+  bulkToggleMcp,
+  deleteMcp,
+  importMcpFromHarnesses,
+  listMcp,
+  previewMcp,
+  saveMcp,
+  toggleMcp
+} from './services/mcp'
 import type {
   AgentId,
   AppSettings,
@@ -36,7 +45,7 @@ ipcMain.handle('hub:getAppInit', async () => {
 
 ipcMain.handle('hub:listMcp', async () => {
   try {
-    return [] as McpItem[] // TODO(Cx): 由 D/E/F/G 块实现
+    return listMcp()
   } catch (err) {
     throw new Error(errMessage(err))
   }
@@ -44,7 +53,7 @@ ipcMain.handle('hub:listMcp', async () => {
 
 ipcMain.handle('hub:saveMcp', async (_event, item: McpItem, prevApps?: Record<AgentId, boolean>) => {
   try {
-    return [] as McpItem[] // TODO(Cx): 由 D/E/F/G 块实现
+    return await saveMcp(item, prevApps)
   } catch (err) {
     throw new Error(errMessage(err))
   }
@@ -52,7 +61,7 @@ ipcMain.handle('hub:saveMcp', async (_event, item: McpItem, prevApps?: Record<Ag
 
 ipcMain.handle('hub:deleteMcp', async (_event, id: string) => {
   try {
-    return [] as McpItem[] // TODO(Cx): 由 D/E/F/G 块实现
+    return await deleteMcp(id)
   } catch (err) {
     throw new Error(errMessage(err))
   }
@@ -60,7 +69,7 @@ ipcMain.handle('hub:deleteMcp', async (_event, id: string) => {
 
 ipcMain.handle('hub:toggleMcp', async (_event, id: string, agentId: AgentId, on: boolean) => {
   try {
-    return [] as McpItem[] // TODO(Cx): 由 D/E/F/G 块实现
+    return await toggleMcp(id, agentId, on)
   } catch (err) {
     throw new Error(errMessage(err))
   }
@@ -68,7 +77,7 @@ ipcMain.handle('hub:toggleMcp', async (_event, id: string, agentId: AgentId, on:
 
 ipcMain.handle('hub:bulkToggleMcp', async (_event, agentId: AgentId, on: boolean) => {
   try {
-    return [] as McpItem[] // TODO(Cx): 由 D/E/F/G 块实现
+    return await bulkToggleMcp(agentId, on)
   } catch (err) {
     throw new Error(errMessage(err))
   }
@@ -76,7 +85,7 @@ ipcMain.handle('hub:bulkToggleMcp', async (_event, agentId: AgentId, on: boolean
 
 ipcMain.handle('hub:importMcpFromHarnesses', async () => {
   try {
-    return { added: [], marked: [] } // TODO(Cx): 由 D/E/F/G 块实现
+    return await importMcpFromHarnesses()
   } catch (err) {
     throw new Error(errMessage(err))
   }
@@ -84,7 +93,7 @@ ipcMain.handle('hub:importMcpFromHarnesses', async () => {
 
 ipcMain.handle('hub:previewMcp', async (_event, id: string, agentId: AgentId) => {
   try {
-    return '' // TODO(Cx): 由 D/E/F/G 块实现
+    return await previewMcp(id, agentId)
   } catch (err) {
     throw new Error(errMessage(err))
   }
