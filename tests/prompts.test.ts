@@ -1,4 +1,4 @@
-// tests/prompts.test.ts —— F1: 提示词库 + 激活（含 live 回填）
+// tests/prompts.test.ts —— F1: 提示词库 + 激活（含 live 回填）；F2: 复制到其他 harness
 // 对齐 cc-switch prompt.rs：upsert_prompt:64-98 / enable_prompt:116-191 / delete_prompt:100-114
 // fixture 与 mcp.test.ts 同套路：mkdtemp 假 harness 家目录，settings.dirOverrides 指向 fixture。
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -9,6 +9,7 @@ import { AGENTS } from '../src/main/paths'
 import { saveSettings, saveStore } from '../src/main/store'
 import type { AgentId, AppSettings, PromptItem } from '../src/main/types'
 import {
+  copyPrompt,
   deletePrompt,
   disablePrompt,
   enablePrompt,
@@ -373,5 +374,128 @@ describe('写前备份（backupBeforeWrite）', () => {
     expect(files.length).toBeGreaterThan(0)
     const bakContent = await fs.readFile(path.join(disabledDir, files[0]), 'utf8')
     expect(bakContent).toBe('OLD-CONTENT')
+  })
+})
+
+describe('copyPrompt（复制到其他 harness）', () => {
+  it('复制到多个目标：各目标库新增条目（enabled:false、id 唯一、updatedAt 更新），源条目与源库不变', async () => {
+    const src: PromptItem = {
+      id: 'p1', name: '通用提示词', desc: 'd', content: 'SRC-CONTENT', enabled: true, updatedAt: 1
+    }
+    const existing: PromptItem = {
+      id: 'c1', name: '已有', content: 'C', enabled: false, updatedAt: 2
+    }
+    const prompts = emptyPrompts()
+    prompts.dsh = [src]
+    prompts.claude = [existing]
+    await saveStore(dataPath, { version: 1, mcpItems: [], skills: [], prompts, skillRepos: [] })
+    const before = Date.now()
+
+    const res = await copyPrompt('dsh', 'p1', ['claude', 'codex'], ctx)
+
+    expect(res.copiedTo).toEqual(['claude', 'codex'])
+    const claude = listPrompts('claude', ctx)
+    expect(claude).toHaveLength(2)
+    const copyC = claude.find((i) => i.id !== 'c1')!
+    expect(copyC.name).toBe('通用提示词')
+    expect(copyC.desc).toBe('d')
+    expect(copyC.content).toBe('SRC-CONTENT')
+    expect(copyC.enabled).toBe(false)
+    expect(copyC.id).toMatch(/^[0-9a-f]{8}$/)
+    expect(copyC.id).not.toBe('p1')
+    expect(copyC.updatedAt).toBeGreaterThanOrEqual(before)
+    const codex = listPrompts('codex', ctx)
+    expect(codex).toHaveLength(1)
+    expect(codex[0].enabled).toBe(false)
+    expect(codex[0].content).toBe('SRC-CONTENT')
+    expect(codex[0].id).not.toBe(copyC.id)
+    // 源库条目原样保留
+    expect(listPrompts('dsh', ctx)).toEqual([src])
+  })
+
+  it('同名自动加序号：目标库已有同名 -> 复制为「名称 (2)」；再复制 -> 「名称 (3)」', async () => {
+    const src: PromptItem = {
+      id: 'p1', name: 'A', content: 'SRC', enabled: false, updatedAt: 1
+    }
+    const existingA: PromptItem = {
+      id: 'a1', name: 'A', content: 'OLD', enabled: false, updatedAt: 2
+    }
+    const prompts = emptyPrompts()
+    prompts.dsh = [src]
+    prompts.claude = [existingA]
+    await saveStore(dataPath, { version: 1, mcpItems: [], skills: [], prompts, skillRepos: [] })
+
+    await copyPrompt('dsh', 'p1', ['claude'], ctx)
+    expect(listPrompts('claude', ctx).map((i) => i.name)).toEqual(['A', 'A (2)'])
+
+    await copyPrompt('dsh', 'p1', ['claude'], ctx)
+    expect(listPrompts('claude', ctx).map((i) => i.name)).toEqual(['A', 'A (2)', 'A (3)'])
+  })
+
+  it('目标库激活条目不受影响：激活状态与指令文件均不变', async () => {
+    const src: PromptItem = {
+      id: 'p1', name: 'P', content: 'SRC', enabled: false, updatedAt: 1
+    }
+    const active: PromptItem = {
+      id: 'act', name: '活跃', content: 'LIVE-ACTIVE', enabled: true, updatedAt: 3
+    }
+    const prompts = emptyPrompts()
+    prompts.dsh = [src]
+    prompts.claude = [active]
+    await saveStore(dataPath, { version: 1, mcpItems: [], skills: [], prompts, skillRepos: [] })
+    await writeLive('claude', 'LIVE-ACTIVE')
+
+    await copyPrompt('dsh', 'p1', ['claude'], ctx)
+
+    const claude = listPrompts('claude', ctx)
+    expect(claude).toHaveLength(2)
+    expect(claude.find((i) => i.id === 'act')!.enabled).toBe(true)
+    expect(claude.find((i) => i.id === 'act')!.content).toBe('LIVE-ACTIVE')
+    expect(claude.filter((i) => i.enabled)).toHaveLength(1)
+    expect(await readLive('claude')).toBe('LIVE-ACTIVE')
+  })
+
+  it('目标=源自身 -> 跳过且源库不变', async () => {
+    const src: PromptItem = {
+      id: 'p1', name: 'A', content: 'SRC', enabled: false, updatedAt: 1
+    }
+    await seed('dsh', [src])
+
+    const res = await copyPrompt('dsh', 'p1', ['dsh'], ctx)
+
+    expect(res.copiedTo).toEqual([])
+    expect(listPrompts('dsh', ctx)).toEqual([src])
+  })
+
+  it('空 targets -> 返回空 copiedTo 且库不变', async () => {
+    const src: PromptItem = {
+      id: 'p1', name: 'A', content: 'SRC', enabled: false, updatedAt: 1
+    }
+    await seed('dsh', [src])
+
+    const res = await copyPrompt('dsh', 'p1', [], ctx)
+
+    expect(res.copiedTo).toEqual([])
+    expect(listPrompts('dsh', ctx)).toEqual([src])
+  })
+
+  it('源 id 不存在 -> 抛错「提示词不存在」且目标库不变', async () => {
+    await seed('dsh', [])
+
+    await expect(copyPrompt('dsh', 'nope', ['claude'], ctx)).rejects.toThrow('提示词不存在：nope')
+
+    expect(listPrompts('claude', ctx)).toEqual([])
+  })
+
+  it('异常目标 agent（非已知 harness）-> 跳过，不影响其他合法目标', async () => {
+    const src: PromptItem = {
+      id: 'p1', name: 'A', content: 'SRC', enabled: false, updatedAt: 1
+    }
+    await seed('dsh', [src])
+
+    const res = await copyPrompt('dsh', 'p1', ['claude', 'garbage' as AgentId], ctx)
+
+    expect(res.copiedTo).toEqual(['claude'])
+    expect(listPrompts('claude', ctx)).toHaveLength(1)
   })
 })

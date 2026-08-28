@@ -1,4 +1,4 @@
-// src/main/services/prompts.ts —— F1: 提示词库 + 激活（含 live 回填）
+// src/main/services/prompts.ts —— F1: 提示词库 + 激活（含 live 回填）；F2: 复制到其他 harness
 // 库存于 store.data.prompts[agentId]（PromptItem[]，每条单状态 enabled）；
 // 激活 = 整文件写入指令文件，激活前把 live 内容回填到原激活条目（无激活条目时创建「原始提示词」备份条目）。
 // 对齐 cc-switch prompt.rs：upsert_prompt:64-98 / enable_prompt:116-191 / delete_prompt:100-114。
@@ -6,7 +6,7 @@
 import { randomUUID } from 'node:crypto'
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { dataFile, fileBackupDir, resolveAgentPaths, settingsFile } from '../paths'
+import { AGENTS, dataFile, fileBackupDir, resolveAgentPaths, settingsFile } from '../paths'
 import { atomicWrite, backupFile } from '../safety'
 import { loadSettings, loadStore, saveStore } from '../store'
 import type { HomeEnv } from '../paths'
@@ -195,4 +195,50 @@ export async function deletePrompt(agentId: AgentId, id: string, ctx?: PromptCtx
   list.splice(idx, 1)
   await saveStore(c.dataFile, data)
   return list
+}
+
+/** 同名自动加序号：`名称`、`名称 (2)`、`名称 (3)`……（对齐交接文档决策 8） */
+function uniqueCopyName(list: PromptItem[], base: string): string {
+  if (!list.some((p) => p.name === base)) return base
+  let n = 2
+  while (list.some((p) => p.name === `${base} (${n})`)) n++
+  return `${base} (${n})`
+}
+
+/**
+ * 复制到其他 harness（对齐交接文档决策 8）：
+ * 源条目取自源库；对每个目标 harness 库插入新条目（新 id、enabled:false、updatedAt=now、content/desc 拷贝源）；
+ * 同名自动加序号；不影响目标库激活状态与指令文件（不写任何文件，仅存库）；
+ * 目标=源自身、非已知 harness、已处理过的目标均跳过；返回 {copiedTo: 实际成功的 AgentId[]}。
+ */
+export async function copyPrompt(
+  agentId: AgentId,
+  id: string,
+  targets: AgentId[],
+  ctx?: PromptCtx
+): Promise<{ copiedTo: AgentId[] }> {
+  const c = ctxOf(ctx)
+  const data = loadStore(c.dataFile)
+  const source = (data.prompts[agentId] ?? []).find((p) => p.id === id)
+  if (!source) throw new Error(`提示词不存在：${id}`)
+
+  const copiedTo: AgentId[] = []
+  for (const target of targets) {
+    if (target === agentId) continue
+    if (copiedTo.includes(target)) continue
+    if (!AGENTS.some((a) => a.id === target)) continue
+    const list = data.prompts[target] ?? []
+    list.push({
+      id: newPromptId(),
+      name: uniqueCopyName(list, source.name),
+      desc: source.desc,
+      content: source.content,
+      enabled: false,
+      updatedAt: Date.now()
+    })
+    copiedTo.push(target)
+  }
+
+  if (copiedTo.length > 0) await saveStore(c.dataFile, data)
+  return { copiedTo }
 }
