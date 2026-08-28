@@ -1,11 +1,21 @@
 // src/main/ipc.ts —— IPC API 契约全部 hub:<name> 通道注册（见任务文档「IPC API 契约」）
 // 副作用模块：src/main/index.ts 顶层 `import './ipc'` 即完成全部注册，无需调用。
-// 真实实现：getAppInit / getSettings / setSettings / setDirOverride 已接通 store；
-// 其余通道按契约返回类型返回安全空默认值，由 D/E/F/G 块实现。
+// 真实实现：getAppInit / getSettings / setSettings / setDirOverride / exportData / importData
+// 已接通 store 与 data-io；其余通道按契约返回类型返回安全空默认值，由 D/E/F/G 块实现。
+import fs from 'node:fs/promises'
 import { dialog, ipcMain } from 'electron'
 import path from 'node:path'
-import { AGENTS, dataFile, resolveAgentPaths, settingsFile, ssotSkillsDir } from './paths'
+import {
+  AGENTS,
+  dataFile,
+  fileBackupDir,
+  resolveAgentPaths,
+  settingsFile,
+  ssotSkillsDir
+} from './paths'
 import { loadSettings, loadStore, saveSettings, saveStore } from './store'
+import type { StoreData } from './store'
+import { applyImport, buildExportPayload, snapshotBeforeImport, validateBackup } from './data-io'
 import {
   bulkToggleMcp,
   deleteMcp,
@@ -135,23 +145,52 @@ ipcMain.handle('hub:listSkills', async () => {
   }
 })
 
+/** 单个 skill 的部署/移除语义（toggleSkill 与 bulkToggleSkill 共用；错误由调用方聚合） */
+async function toggleSkillOne(
+  data: StoreData,
+  entry: SkillInstalled,
+  agentId: AgentId,
+  on: boolean
+): Promise<void> {
+  entry.apps = entry.apps ?? {}
+  const settings = loadSettings(settingsFile())
+  const r = resolveAgentPaths(agentId, settings.dirOverrides)
+  if (on) {
+    await deploySkill(ssotSkillsDir(), entry.dir, r.skillsDir, settings.syncMethod)
+    entry.apps[agentId] = true
+  } else {
+    await undeploySkill(path.join(r.skillsDir, entry.dir))
+    delete entry.apps[agentId]
+  }
+}
+
 ipcMain.handle('hub:toggleSkill', async (_event, dir: string, agentId: AgentId, on: boolean) => {
   try {
     const data = loadStore(dataFile())
     const entry = data.skills.find((s) => s.dir === dir)
     if (!entry) throw new Error(`skill not found: ${dir}`)
-    entry.apps = entry.apps ?? {}
-    const settings = loadSettings(settingsFile())
-    const r = resolveAgentPaths(agentId, settings.dirOverrides)
-    if (on) {
-      await deploySkill(ssotSkillsDir(), dir, r.skillsDir, settings.syncMethod)
-      entry.apps[agentId] = true
-    } else {
-      await undeploySkill(path.join(r.skillsDir, dir))
-      delete entry.apps[agentId]
-    }
+    await toggleSkillOne(data, entry, agentId, on)
     await saveStore(dataFile(), data)
     return data.skills
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+ipcMain.handle('hub:bulkToggleSkill', async (_event, agentId: AgentId, on: boolean) => {
+  try {
+    const data = loadStore(dataFile())
+    // 错误聚合：单条失败不中断，收集后返回，避免中途放弃
+    const errors: string[] = []
+    for (const entry of data.skills) {
+      try {
+        await toggleSkillOne(data, entry, agentId, on)
+      } catch (err) {
+        errors.push(`${entry.dir}: ${errMessage(err)}`)
+      }
+    }
+    await saveStore(dataFile(), data)
+    return { skills: data.skills, errors }
   } catch (err) {
     throw new Error(errMessage(err))
   }
@@ -392,17 +431,47 @@ ipcMain.handle('hub:browseDir', async (_event, agentId: AgentId) => {
   }
 })
 
-ipcMain.handle('hub:exportData', async () => {
+ipcMain.handle('hub:exportData', async (_event, filePath?: string) => {
   try {
-    return '' // TODO(Cx): 由 D/E/F/G 块实现
+    const payload = buildExportPayload(loadStore(dataFile()), loadSettings(settingsFile()))
+    // 传入 filePath 则直接写入（自动化/smoke 用）；否则弹 save dialog（人工路径）
+    let target = filePath
+    if (!target) {
+      const res = await dialog.showSaveDialog({
+        title: '导出 HarnessHub 配置',
+        defaultPath: 'harness-hub-backup.json',
+        filters: [{ name: 'JSON 备份', extensions: ['json'] }]
+      })
+      if (res.canceled || !res.filePath) return '' // 用户取消：渲染层安静处理
+      target = res.filePath
+    }
+    await fs.writeFile(target, JSON.stringify(payload, null, 2), 'utf8')
+    return target
   } catch (err) {
     throw new Error(errMessage(err))
   }
 })
 
-ipcMain.handle('hub:importData', async () => {
+ipcMain.handle('hub:importData', async (_event, filePath?: string) => {
   try {
-    return '' // TODO(Cx): 由 D/E/F/G 块实现
+    // 传入 filePath 则直接使用（自动化/smoke 用）；否则弹 open dialog（人工路径）
+    let src = filePath
+    if (!src) {
+      const res = await dialog.showOpenDialog({
+        title: '选择 HarnessHub 备份文件',
+        properties: ['openFile'],
+        filters: [{ name: 'JSON 备份', extensions: ['json'] }]
+      })
+      if (res.canceled || !res.filePaths[0]) return '' // 用户取消
+      src = res.filePaths[0]
+    }
+    // 1) 解析校验（不破坏现有数据：校验失败直接抛错，原文件不动）
+    const payload = validateBackup(await fs.readFile(src, 'utf8'))
+    // 2) 导入前快照：当前 data/settings 复制到 <fileBackupDir>/<name>-<ts>.preimport.bak
+    await snapshotBeforeImport(dataFile(), settingsFile(), fileBackupDir())
+    // 3) 校验通过才覆盖写回（原子写入 + JSON 回验）
+    await applyImport(payload, dataFile(), settingsFile())
+    return 'ok'
   } catch (err) {
     throw new Error(errMessage(err))
   }

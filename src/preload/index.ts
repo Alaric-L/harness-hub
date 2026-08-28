@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('hub', {
   // Skills
   listSkills: (...args: unknown[]) => ipcRenderer.invoke('hub:listSkills', ...args),
   toggleSkill: (...args: unknown[]) => ipcRenderer.invoke('hub:toggleSkill', ...args),
+  bulkToggleSkill: (...args: unknown[]) => ipcRenderer.invoke('hub:bulkToggleSkill', ...args),
   uninstallSkill: (...args: unknown[]) => ipcRenderer.invoke('hub:uninstallSkill', ...args),
   listSkillBackups: (...args: unknown[]) => ipcRenderer.invoke('hub:listSkillBackups', ...args),
   restoreSkillBackup: (...args: unknown[]) => ipcRenderer.invoke('hub:restoreSkillBackup', ...args),

@@ -31,8 +31,24 @@ export function renderCountBar(containerId, items, kind){
       if(kind==='mcp'){
         try {
           state.mcpItems = await window.hub.bulkToggleMcp(agentId, !!target);
-          showToast(`已在 ${agent.name} 中${target?'全部开启':'全部关闭'}${kind==='mcp'?' MCP':' Skills'}`);
+          showToast(`已在 ${agent.name} 中${target?'全部开启':'全部关闭'} MCP`);
           renderCountBar(containerId, state.mcpItems, kind);
+          renderMatrix(kind);
+        } catch (err) {
+          showToast('操作失败：' + err.message);
+        }
+        return;
+      }
+      if(kind==='skill'){
+        // G4：bulkToggleSkill 走真实后端（G2 遗留缺口——此前仅本地改 state 不落盘）
+        try {
+          const res = await window.hub.bulkToggleSkill(agentId, !!target);
+          state.skillsItems = res.skills;
+          showToast(`已在 ${agent.name} 中${target?'全部开启':'全部关闭'} Skills`);
+          if(res.errors && res.errors.length){
+            showToast(`部分失败（${res.errors.length}）：` + res.errors[0]);
+          }
+          renderCountBar(containerId, state.skillsItems, kind);
           renderMatrix(kind);
         } catch (err) {
           showToast('操作失败：' + err.message);

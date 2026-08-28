@@ -182,14 +182,14 @@
               <div class="t-label">写入前自动备份</div>
               <div class="t-sub">每次修改 harness 配置文件（MCP 开关、提示词激活）前，先备份原文件到本地历史目录</div>
             </div>
-            <label class="switch"><input type="checkbox" checked><span class="slider"></span></label>
+            <label class="switch"><input type="checkbox" id="set-backup-before-write" checked><span class="slider"></span></label>
           </div>
           <div class="toggle-row">
             <div>
               <div class="t-label">Skill 卸载前备份</div>
               <div class="t-sub">卸载 Skill 时在「从备份恢复」列表中保留一份副本</div>
             </div>
-            <label class="switch"><input type="checkbox" checked><span class="slider"></span></label>
+            <label class="switch"><input type="checkbox" id="set-skill-uninstall-backup" checked><span class="slider"></span></label>
           </div>
           <div class="toggle-row">
             <div>
@@ -203,9 +203,9 @@
           <h4>Skill 同步方式</h4>
           <p class="hint">将中央 Skill 库分发到各 harness skills 目录的方式。</p>
           <div class="radio-row" id="sync-method-row">
-            <label class="radio-pill active"><input type="radio" name="syncm" checked>自动（优先符号链接，失败回退复制）</label>
-            <label class="radio-pill"><input type="radio" name="syncm">仅符号链接</label>
-            <label class="radio-pill"><input type="radio" name="syncm">仅复制</label>
+            <label class="radio-pill active" data-sync="auto"><input type="radio" name="syncm" checked>自动（优先符号链接，失败回退复制）</label>
+            <label class="radio-pill" data-sync="symlink"><input type="radio" name="syncm">仅符号链接</label>
+            <label class="radio-pill" data-sync="copy"><input type="radio" name="syncm">仅复制</label>
           </div>
         </div>
         <div class="settings-section">
