@@ -14,6 +14,13 @@ import {
   saveMcp,
   toggleMcp
 } from './services/mcp'
+import {
+  deletePrompt,
+  disablePrompt,
+  enablePrompt,
+  listPrompts,
+  savePrompt
+} from './services/prompts'
 import type {
   AgentId,
   AppSettings,
@@ -257,7 +264,7 @@ ipcMain.handle('hub:installSkillFromSh', async (_event, key: string, repo: strin
 
 ipcMain.handle('hub:listPrompts', async (_event, agentId: AgentId) => {
   try {
-    return [] as PromptItem[] // TODO(Cx): 由 D/E/F/G 块实现
+    return listPrompts(agentId)
   } catch (err) {
     throw new Error(errMessage(err))
   }
@@ -265,7 +272,7 @@ ipcMain.handle('hub:listPrompts', async (_event, agentId: AgentId) => {
 
 ipcMain.handle('hub:savePrompt', async (_event, agentId: AgentId, item: PromptItem) => {
   try {
-    return [] as PromptItem[] // TODO(Cx): 由 D/E/F/G 块实现
+    return await savePrompt(agentId, item)
   } catch (err) {
     throw new Error(errMessage(err))
   }
@@ -273,7 +280,7 @@ ipcMain.handle('hub:savePrompt', async (_event, agentId: AgentId, item: PromptIt
 
 ipcMain.handle('hub:deletePrompt', async (_event, agentId: AgentId, id: string) => {
   try {
-    return [] as PromptItem[] // TODO(Cx): 由 D/E/F/G 块实现
+    return await deletePrompt(agentId, id)
   } catch (err) {
     throw new Error(errMessage(err))
   }
@@ -281,7 +288,7 @@ ipcMain.handle('hub:deletePrompt', async (_event, agentId: AgentId, id: string) 
 
 ipcMain.handle('hub:enablePrompt', async (_event, agentId: AgentId, id: string) => {
   try {
-    return [] as PromptItem[] // TODO(Cx): 由 D/E/F/G 块实现（含 live 回填）
+    return await enablePrompt(agentId, id)
   } catch (err) {
     throw new Error(errMessage(err))
   }
@@ -289,7 +296,7 @@ ipcMain.handle('hub:enablePrompt', async (_event, agentId: AgentId, id: string) 
 
 ipcMain.handle('hub:disablePrompt', async (_event, agentId: AgentId) => {
   try {
-    return [] as PromptItem[] // TODO(Cx): 由 D/E/F/G 块实现
+    return await disablePrompt(agentId)
   } catch (err) {
     throw new Error(errMessage(err))
   }
