@@ -39,7 +39,8 @@ export async function backupFile(
 }
 
 /**
- * 原子写入：1) 写 <path>.tmp；2) validate(content) 抛错则删 tmp 并上抛（原文件不动）；
+ * 原子写入：0) 父目录不存在则递归创建（对齐 cc-switch write_text_file）；
+ * 1) 写 <path>.tmp；2) validate(content) 抛错则删 tmp 并上抛（原文件不动）；
  * 3) fs.rename 替换；4) 任何失败路径都确保清理 tmp。
  */
 export async function atomicWrite(
@@ -49,6 +50,7 @@ export async function atomicWrite(
 ): Promise<void> {
   const tmpPath = filePath + '.tmp'
   try {
+    await fs.mkdir(path.dirname(filePath), { recursive: true })
     await fs.writeFile(tmpPath, content, 'utf8')
     if (validate) validate(content)
     await fs.rename(tmpPath, filePath)

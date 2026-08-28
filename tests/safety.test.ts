@@ -47,6 +47,13 @@ describe('atomicWrite', () => {
     await expect(fs.access(file + '.tmp')).rejects.toThrow()
   })
 
+  it('父目录不存在时自动递归创建（对齐 cc-switch write_text_file）', async () => {
+    const file = path.join(tmp, 'nested', 'deeper', 'target.json')
+    await atomicWrite(file, '{"ok":true}')
+
+    expect(await fs.readFile(file, 'utf8')).toBe('{"ok":true}')
+  })
+
   it('validate 抛错时不破坏原文件，且无 .tmp 残留', async () => {
     const file = path.join(tmp, 'target.txt')
     await fs.writeFile(file, 'original', 'utf8')
