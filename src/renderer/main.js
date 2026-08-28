@@ -1,6 +1,6 @@
-/* ================= 聚合入口（B2：主视图 mock 渲染 / B3：表单与弹窗全量初始化 / G1：启动接真实后端） ================= */
+/* ================= 聚合入口（B2：主视图 mock 渲染 / B3：表单与弹窗全量初始化 / G1：启动接真实后端 / G3：getAgentsDetailed + 提示词库全量加载） ================= */
 import { state } from './state.js';
-import { AGENT_BY } from './data.js';
+import { AGENTS, AGENT_BY } from './data.js';
 import { $, showToast } from './ui/common.js';
 import { renderSidebarAgents } from './ui/sidebar.js';
 import { renderDashboard } from './ui/dashboard.js';
@@ -50,7 +50,7 @@ $('search-input').addEventListener('input', e=>{
   if(state.currentView==='skills'){ state.skillQuery = q; if(state.skillsTab==='installed') applyMatrixFilters('skill'); }
 });
 
-/* ================= 初始化（G1：getAppInit + listMcp 拉真实数据后全量渲染，保持 B 块顺序） ================= */
+/* ================= 初始化（G1：getAppInit + listMcp 拉真实数据后全量渲染，保持 B 块顺序；G3：+getAgentsDetailed 与全部提示词库） ================= */
 async function init(){
   try {
     const init = await window.hub.getAppInit();
@@ -58,10 +58,20 @@ async function init(){
     state.settings = init.settings;
   } catch (err) { showToast('操作失败：' + err.message); }
   try {
+    // G3：真实解析路径（Harness 管理卡 + 提示词页头部指令文件路径）
+    state.agentsDetailed = await window.hub.getAgentsDetailed();
+  } catch (err) { showToast('操作失败：' + err.message); }
+  try {
     state.mcpItems = await window.hub.listMcp();
   } catch (err) { showToast('操作失败：' + err.message); }
   try {
     state.skillsItems = await window.hub.listSkills();
+  } catch (err) { showToast('操作失败：' + err.message); }
+  try {
+    // G3：预加载全部提示词库（Dashboard 激活计数与 tab 切换同源真实数据）
+    await Promise.all(AGENTS.map(a=>
+      window.hub.listPrompts(a.id).then(list=>{ state.promptsByAgent[a.id] = list; })
+    ));
   } catch (err) { showToast('操作失败：' + err.message); }
 
   renderSidebarAgents();

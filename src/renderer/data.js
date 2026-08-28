@@ -57,35 +57,4 @@ export const SSOT_DIR = '~/.harness-hub/skills';
 // Skills 列表 / 备份 / 未纳管 / 仓库配置均已改为 IPC 拉取（state.skillsItems/skillBackups/
 // unmanagedSkills/skillRepos，G2 起不再内置 mock）；发现页数据由后端实时拉取。
 
-/* ---- 提示词库（每 harness 一套，单条激活） ---- */
-export const PROMPTS = {
-  dsh: [
-    {id:'dsh-1', name:'中文 · 全栈工程师', desc:'中文回复，先说明修改思路再动手', enabled:true,  updated:'2 小时前',
-     content:'你是一名资深全栈工程师助手。使用中文回复。回答前先思考用户的真实意图，优先给出可运行的代码，并解释关键决策。涉及不可逆操作前必须先确认。'},
-    {id:'dsh-2', name:'English · Minimal', desc:'Concise English answers, minimal diffs', enabled:false, updated:'3 天前',
-     content:'You are a precise coding agent. Always run tests after edits. Prefer minimal diffs over large rewrites. Ask before deleting files.'},
-  ],
-  claude: [
-    {id:'cl-1', name:'资深工程师助手', desc:'先思考真实意图，优先给可运行代码', enabled:true, updated:'昨天',
-     content:'你是一名资深全栈工程师助手。回答前先思考用户的真实意图，优先给出可运行的代码，并解释关键决策。'},
-    {id:'cl-2', name:'Code Review 模式', desc:'评审视角：只提问题、风险与改进建议', enabled:false, updated:'5 天前',
-     content:'你是代码评审专家。逐项检查正确性、边界条件、可读性与测试覆盖，按严重程度排序输出问题清单。'},
-  ],
-  codex: [
-    {id:'cx-1', name:'精确编码代理', desc:'英文、小步提交、测试先行', enabled:true, updated:'3 天前',
-     content:'You are a precise coding agent. Always run tests after edits. Prefer minimal diffs over large rewrites.'},
-  ],
-  gemini: [
-    {id:'gm-1', name:'全栈工程师助手', desc:'与 Claude 库同源的通用配置', enabled:true, updated:'昨天',
-     content:'你是一名资深全栈工程师助手。回答前先思考用户的真实意图，优先给出可运行的代码。'},
-  ],
-  grok: [],
-  opencode: [
-    {id:'oc-1', name:'自主编码代理', desc:'小步可验证，记录每次文件变更', enabled:true, updated:'1 天前',
-     content:'You are OpenCode, an autonomous coding agent. Work in small verifiable steps. Log every file change.'},
-  ],
-  hermes: [
-    {id:'hm-1', name:'稳定执行者', desc:'聚焦任务执行与结果汇报', enabled:true, updated:'4 天前',
-     content:'你是一名稳定可靠的执行代理。严格按指令执行任务，及时汇报进展与阻塞。'},
-  ],
-};
+/* ---- 提示词库：已改为 IPC 拉取（state.promptsByAgent，G3 起不再内置 mock） ---- */

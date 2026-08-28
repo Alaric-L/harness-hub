@@ -16,6 +16,7 @@ import {
   toggleMcp
 } from './services/mcp'
 import {
+  copyPrompt,
   deletePrompt,
   disablePrompt,
   enablePrompt,
@@ -342,13 +343,26 @@ ipcMain.handle('hub:disablePrompt', async (_event, agentId: AgentId) => {
 
 ipcMain.handle('hub:copyPrompt', async (_event, agentId: AgentId, id: string, targets: AgentId[]) => {
   try {
-    return { copiedTo: [] as AgentId[] } // TODO(Cx): 由 D/E/F/G 块实现
+    return await copyPrompt(agentId, id, targets)
   } catch (err) {
     throw new Error(errMessage(err))
   }
 })
 
 // ---- Harness 管理与设置 ----
+
+// G3 新增（IPC API 契约扩展）：返回模板 agents + 各 harness 经 resolveAgentPaths 解析后的真实绝对路径。
+// 供 Harness 管理页展示与目录覆盖后的全量刷新（提示词页头部真实指令文件路径亦取自此）。
+ipcMain.handle('hub:getAgentsDetailed', async () => {
+  try {
+    const settings = loadSettings(settingsFile())
+    const resolved = {} as Record<AgentId, ReturnType<typeof resolveAgentPaths>>
+    for (const a of AGENTS) resolved[a.id] = resolveAgentPaths(a.id, settings.dirOverrides)
+    return { agents: AGENTS, resolved }
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
 
 ipcMain.handle('hub:setDirOverride', async (_event, agentId: AgentId, dir: string | null) => {
   try {
@@ -367,7 +381,12 @@ ipcMain.handle('hub:setDirOverride', async (_event, agentId: AgentId, dir: strin
 
 ipcMain.handle('hub:browseDir', async (_event, agentId: AgentId) => {
   try {
-    return null // TODO(Cx): 由 D/E/F/G 块实现（内部调 dialog.showOpenDialog）
+    const res = await dialog.showOpenDialog({
+      title: `选择 ${agentId} 的配置目录`,
+      properties: ['openDirectory']
+    })
+    // 用户取消：返回 null（渲染层安静处理，不填回输入框）
+    return res.canceled || !res.filePaths[0] ? null : res.filePaths[0]
   } catch (err) {
     throw new Error(errMessage(err))
   }

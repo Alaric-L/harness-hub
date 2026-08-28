@@ -42,6 +42,8 @@ contextBridge.exposeInMainWorld('hub', {
   disablePrompt: (...args: unknown[]) => ipcRenderer.invoke('hub:disablePrompt', ...args),
   copyPrompt: (...args: unknown[]) => ipcRenderer.invoke('hub:copyPrompt', ...args),
   // Harness 管理与设置
+  // G3 契约扩展：getAgentsDetailed（模板 agents + 各 harness 解析后真实路径）
+  getAgentsDetailed: (...args: unknown[]) => ipcRenderer.invoke('hub:getAgentsDetailed', ...args),
   setDirOverride: (...args: unknown[]) => ipcRenderer.invoke('hub:setDirOverride', ...args),
   browseDir: (...args: unknown[]) => ipcRenderer.invoke('hub:browseDir', ...args),
   exportData: (...args: unknown[]) => ipcRenderer.invoke('hub:exportData', ...args),

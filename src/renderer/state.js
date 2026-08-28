@@ -6,6 +6,8 @@ export const state = {
   currentPromptAgent: 'dsh',
   agents: null,          // getAppInit().agents（G1 起填充，G3 消费）
   settings: null,        // getAppInit().settings（G1 起填充，G3 消费）
+  agentsDetailed: null,  // hub.getAgentsDetailed() 返回 {agents, resolved}（G3 新增：真实解析路径）
+  promptsByAgent: {},    // hub.listPrompts/savePrompt/enablePrompt/... 返回的每 harness 提示词库（G3 起不再内置 mock）
   mcpItems: [],          // IPC listMcp/saveMcp/toggleMcp/... 返回的统一库（不再内置 mock）
   skillsItems: [],       // IPC listSkills/toggleSkill/uninstallSkill/importSkills/... 返回的统一库（G2 起不再内置 mock）
   skillBackups: [],      // IPC listSkillBackups 返回的备份列表
