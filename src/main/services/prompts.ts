@@ -242,3 +242,42 @@ export async function copyPrompt(
   if (copiedTo.length > 0) await saveStore(c.dataFile, data)
   return { copiedTo }
 }
+
+/**
+ * 从各 harness 配置目录导入提示词（对应提示词页「从各 harness 导入」刷新按钮）：
+ * 遍历 7 个 harness 的指令文件（resolveAgentPaths，目录覆盖已生效），读 live 内容；
+ * 内容在该 harness 库中不存在时新增一条「原始提示词 <时间>」禁用条目（复用 enablePrompt 回填语义）。
+ * 已存在（含激活条目）的内容跳过，避免重复导入；返回 {added, imported} 供渲染层 toast。
+ */
+export async function importPromptsFromHarnesses(
+  ctx?: PromptCtx
+): Promise<{ added: number; imported: Partial<Record<AgentId, string[]>> }> {
+  const c = ctxOf(ctx)
+  const data = loadStore(c.dataFile)
+  const settings = loadSettings(c.settingsFile)
+  const imported: Partial<Record<AgentId, string[]>> = {}
+  let added = 0
+
+  for (const agent of AGENTS) {
+    const r = resolveAgentPaths(agent.id, settings.dirOverrides, c.env)
+    const live = await readLiveFile(r.promptFile)
+    if (live.trim() === '') continue // 目录/指令文件不存在或为空：跳过
+    const list = data.prompts[agent.id] ?? []
+    if (list.some((p) => p.content.trim() === live.trim())) continue
+    const name = `原始提示词 ${localTime()}`
+    list.push({
+      id: newPromptId(),
+      name,
+      desc: '从 harness 配置目录导入的原始提示词',
+      content: live,
+      enabled: false,
+      updatedAt: Date.now()
+    })
+    data.prompts[agent.id] = list
+    imported[agent.id] = [...(imported[agent.id] ?? []), name]
+    added++
+  }
+
+  if (added > 0) await saveStore(c.dataFile, data)
+  return { added, imported }
+}

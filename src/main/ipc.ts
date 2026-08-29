@@ -30,6 +30,7 @@ import {
   deletePrompt,
   disablePrompt,
   enablePrompt,
+  importPromptsFromHarnesses,
   listPrompts,
   savePrompt
 } from './services/prompts'
@@ -45,6 +46,8 @@ import {
   updateSkill
 } from './services/discovery'
 import { deploySkill, undeploySkill, uninstallSkill } from './services/skills'
+import { assertAgentRoot } from './services/agent-root'
+import { getAgentVersions, installAgent } from './services/agents-version'
 import {
   deleteSkillBackup,
   importSkills,
@@ -72,6 +75,24 @@ ipcMain.handle('hub:getAppInit', async () => {
   try {
     // loadSettings 为同步函数，直接调用（store.ts）；返回 7 agents + settings
     return { agents: AGENTS, settings: loadSettings(settingsFile()) }
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+// ---- Harness 版本探测 / 安装（Dashboard 概览） ----
+
+ipcMain.handle('hub:getAgentVersions', async (_event, ids?: AgentId[]) => {
+  try {
+    return await getAgentVersions(ids)
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+ipcMain.handle('hub:installAgent', async (_event, agentId: AgentId) => {
+  try {
+    return await installAgent(agentId)
   } catch (err) {
     throw new Error(errMessage(err))
   }
@@ -154,7 +175,8 @@ async function toggleSkillOne(
 ): Promise<void> {
   entry.apps = entry.apps ?? {}
   const settings = loadSettings(settingsFile())
-  const r = resolveAgentPaths(agentId, settings.dirOverrides)
+  // 部署前检查该 harness 的最外层配置目录存在（目录覆盖已生效）；关闭方向无需检查
+  const r = on ? assertAgentRoot(agentId, settings.dirOverrides) : resolveAgentPaths(agentId, settings.dirOverrides)
   if (on) {
     await deploySkill(ssotSkillsDir(), entry.dir, r.skillsDir, settings.syncMethod)
     entry.apps[agentId] = true
@@ -383,6 +405,14 @@ ipcMain.handle('hub:disablePrompt', async (_event, agentId: AgentId) => {
 ipcMain.handle('hub:copyPrompt', async (_event, agentId: AgentId, id: string, targets: AgentId[]) => {
   try {
     return await copyPrompt(agentId, id, targets)
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
+ipcMain.handle('hub:importPromptsFromHarnesses', async () => {
+  try {
+    return await importPromptsFromHarnesses()
   } catch (err) {
     throw new Error(errMessage(err))
   }

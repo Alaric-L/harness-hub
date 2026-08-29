@@ -1,7 +1,7 @@
 /* ================= Skills：子视图切换 / 备份 / 导入 / 发现 / 仓库管理（G2：全部接真实后端） ================= */
 import { AGENTS, AGENT_BY } from '../data.js';
 import { icon } from '../icons.js';
-import { $, showToast, askConfirm } from './common.js';
+import { $, showToast, askConfirm, errMsg } from './common.js';
 import { state } from '../state.js';
 import { renderCountBar, renderMatrix } from './matrix.js';
 import { renderDashboard } from './dashboard.js';
@@ -68,7 +68,7 @@ async function loadBackups(){
   try {
     state.skillBackups = await window.hub.listSkillBackups();
   } catch (err) {
-    $('backup-list').innerHTML = `<div class="empty-box" style="padding:30px;"><h4>加载失败</h4><p>${err.message}</p></div>`;
+    $('backup-list').innerHTML = `<div class="empty-box" style="padding:30px;"><h4>加载失败</h4><p>${errMsg(err)}</p></div>`;
     showToast('操作失败：' + err.message);
     return;
   }
@@ -250,7 +250,7 @@ async function loadRepoDiscovery(){
     }
     renderDiscoveryGrid();
   } catch (err) {
-    $('skill-grid').innerHTML = `<div class="empty-box" style="grid-column:1/-1;"><h4>加载失败</h4><p>${err.message}</p></div>`;
+    $('skill-grid').innerHTML = `<div class="empty-box" style="grid-column:1/-1;"><h4>加载失败</h4><p>${errMsg(err)}</p></div>`;
     showToast('操作失败：' + err.message);
   } finally {
     btn.disabled = false; btn.textContent = orig;
@@ -268,7 +268,7 @@ async function loadShDiscovery(){
   try {
     list = await window.hub.searchSkillsSh(q);
   } catch (err) {
-    $('skill-grid').innerHTML = `<div class="empty-box" style="grid-column:1/-1;"><h4>搜索失败</h4><p>${err.message}</p></div>`;
+    $('skill-grid').innerHTML = `<div class="empty-box" style="grid-column:1/-1;"><h4>搜索失败</h4><p>${errMsg(err)}</p></div>`;
     showToast('操作失败：' + err.message);
     return;
   }

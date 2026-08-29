@@ -50,13 +50,16 @@
       <!-- ===== Dashboard ===== -->
       <section class="view active" id="view-dashboard">
         <div class="stat-grid">
-          <div class="stat-card"><div class="num accent" id="stat-agents">0</div><div class="lbl">已接入 Harness</div></div>
+          <div class="stat-card"><div class="num accent" id="stat-agents">0</div><div class="lbl">已安装 Harness</div></div>
           <div class="stat-card"><div class="num" id="stat-mcp">0</div><div class="lbl">MCP 服务总数</div></div>
           <div class="stat-card"><div class="num" id="stat-skill">0</div><div class="lbl">已安装 Skills</div></div>
           <div class="stat-card"><div class="num" id="stat-prompt">0</div><div class="lbl">激活中的提示词</div></div>
         </div>
         <div class="dash-section">
-          <h4>Harness 概览</h4>
+          <div class="dash-head">
+            <h4>Harness 概览</h4>
+            <button class="btn btn-ghost btn-sm" id="btn-dash-refresh">⟳ 刷新版本</button>
+          </div>
           <div class="agent-grid-mini" id="dash-agent-grid"></div>
         </div>
       </section>
@@ -143,7 +146,10 @@
         <div class="prompt-tabs" id="prompt-tabs"></div>
         <div class="prompt-head">
           <span class="prompt-file" id="prompt-file"></span>
-          <button class="btn btn-primary btn-icon" id="btn-add-prompt">+ 新增提示词</button>
+          <div class="prompt-head-actions">
+            <button class="btn btn-ghost" id="btn-import-prompts">↓ 从各 harness 导入</button>
+            <button class="btn btn-primary btn-icon" id="btn-add-prompt">+ 新增提示词</button>
+          </div>
         </div>
         <div class="prompt-list" id="prompt-list"></div>
       </section>

@@ -62,6 +62,10 @@ async function init(){
     state.agentsDetailed = await window.hub.getAgentsDetailed();
   } catch (err) { showToast('操作失败：' + err.message); }
   try {
+    // Dashboard 概览：探测各 harness 当前/最新版本（子进程 + npm 网络，慢则各卡独立显示）
+    state.agentVersions = await window.hub.getAgentVersions();
+  } catch (err) { showToast('操作失败：' + err.message); }
+  try {
     state.mcpItems = await window.hub.listMcp();
   } catch (err) { showToast('操作失败：' + err.message); }
   try {
@@ -74,6 +78,9 @@ async function init(){
     ));
   } catch (err) { showToast('操作失败：' + err.message); }
 
+  // 启动时自动从各 harness 导入一次（MCP / 未纳管 Skills / 提示词），有变化时汇总提示
+  await autoRefreshFromHarnesses();
+
   renderSidebarAgents();
   renderDashboard();
   renderCountBar('mcp-countbar', state.mcpItems, 'mcp');
@@ -83,5 +90,48 @@ async function init(){
   renderPrompts();
   renderAgents();
   renderDiscovery();
+}
+
+/* ================= 启动自动刷新：从各 harness 配置目录导入一次 =================
+ * MCP：合并 harness 配置文件条目进库（只动本地库，不写 harness 文件）；
+ * Skills：未纳管 skill 自动导入中央库并部署到发现位置（apps=发现所在 harness）；
+ * 提示词：指令文件 live 内容不在库中的新增「原始提示词」条目。
+ * 各步独立成败（失败 console 记录 + 汇总 toast 提示），幂等：已导入的不会重复。 */
+async function autoRefreshFromHarnesses(){
+  const summary = { mcp: 0, skill: 0, prompt: 0 };
+  const errors = [];
+  try {
+    const { added } = await window.hub.importMcpFromHarnesses();
+    state.mcpItems = await window.hub.listMcp();
+    summary.mcp = added.length;
+  } catch (err) { errors.push('MCP：' + err.message); }
+  try {
+    const unmanaged = await window.hub.listUnmanagedSkills();
+    if(unmanaged.length > 0){
+      const items = unmanaged.map(s=>{
+        const apps = {};
+        for(const id of s.foundIn) apps[id] = true;
+        return { dir: s.dir, apps };
+      });
+      try {
+        state.skillsItems = await window.hub.importSkills(items);
+        summary.skill = items.length;
+      } catch (err) { errors.push('Skills：' + err.message); }
+    }
+  } catch (err) { errors.push('Skills：' + err.message); }
+  try {
+    const res = await window.hub.importPromptsFromHarnesses();
+    await Promise.all(AGENTS.map(a=>
+      window.hub.listPrompts(a.id).then(list=>{ state.promptsByAgent[a.id] = list; })
+    ));
+    summary.prompt = res.added;
+  } catch (err) { errors.push('提示词：' + err.message); }
+
+  if(summary.mcp + summary.skill + summary.prompt > 0){
+    showToast(`启动时已自动导入：MCP +${summary.mcp} · Skills +${summary.skill} · 提示词 +${summary.prompt}`);
+  }
+  if(errors.length > 0){
+    showToast('启动自动刷新部分失败：' + errors[0]);
+  }
 }
 init();

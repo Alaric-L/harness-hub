@@ -16,6 +16,7 @@ import {
 } from '../adapters/toml'
 import { readYamlMcp, removeYamlMcpEntry, upsertYamlMcpEntry } from '../adapters/yaml'
 import { readDshMcp, removeDshMcp, upsertDshMcp } from '../adapters/dsh'
+import { assertAgentRoot } from './agent-root'
 import { AGENTS, dataFile, fileBackupDir, resolveAgentPaths, settingsFile } from '../paths'
 import { loadSettings, loadStore, saveStore } from '../store'
 import type { HomeEnv } from '../paths'
@@ -89,7 +90,8 @@ async function writeEntry(
   settings: AppSettings,
   c: ReturnType<typeof ctxOf>
 ): Promise<void> {
-  const r = resolveAgentPaths(agentId, settings.dirOverrides, c.env)
+  // 写入前检查该 harness 的最外层配置目录存在（目录覆盖已生效）；不存在抛可读错误不写入
+  const r = assertAgentRoot(agentId, settings.dirOverrides, c.env)
   await adapterFor(agentId).write(r.mcpPath, id, spec, backupDirFor(settings, c.backupDir))
 }
 
@@ -132,6 +134,7 @@ export async function bulkToggleMcp(agentId: AgentId, on: boolean, ctx?: McpCtx)
   const c = ctxOf(ctx)
   const data = loadStore(c.dataFile)
   const settings = loadSettings(c.settingsFile)
+  if (on) assertAgentRoot(agentId, settings.dirOverrides, c.env) // 写入前预检目录，避免逐条写入中途失败
   for (const item of data.mcpItems) {
     if (on) {
       if (!item.apps[agentId]) {
@@ -162,6 +165,11 @@ export async function saveMcp(
   const settings = loadSettings(c.settingsFile)
   const idx = data.mcpItems.findIndex((i) => i.id === item.id)
   const next = item.apps ?? {}
+
+  // 预检：本次要启用的所有 harness 配置目录必须存在，任一缺失则整单拒绝（避免部分写入）
+  for (const agentId of Object.keys(next) as AgentId[]) {
+    if (next[agentId]) assertAgentRoot(agentId, settings.dirOverrides, c.env)
+  }
 
   if (idx >= 0) {
     const prev = prevApps ?? data.mcpItems[idx].apps ?? {}

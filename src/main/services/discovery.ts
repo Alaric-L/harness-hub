@@ -16,6 +16,7 @@ import os from 'node:os'
 import { createHash } from 'node:crypto'
 import { unzipSync } from 'fflate'
 import { resolveAgentPaths } from '../paths'
+import { assertAgentRoot } from './agent-root'
 import { loadSettings, loadStore, saveStore } from '../store'
 import { parseSkillMd } from '../skillmd'
 import { deploySkill, resolveSkillCtx, sanitizeSkillDirName } from './skills'
@@ -603,6 +604,12 @@ export async function updateSkillFromExtractedDir(
   const source = resolveSkillSourceDir(extractedDir, match.directory)
   if (!source) throw new Error(`未找到 skill 目录：${dir}`)
 
+  // 预检：所有已启用 harness 的配置目录必须存在（任一缺失则拒绝更新，SSOT 不做任何改动）
+  const settings = loadSettings(c.settingsFile)
+  for (const agentId of Object.keys(entry.apps ?? {}) as AgentId[]) {
+    if (entry.apps[agentId]) assertAgentRoot(agentId, settings.dirOverrides, c.env)
+  }
+
   // 覆盖 SSOT 目录
   const destRoot = path.join(c.ssotDir, dir)
   await fsp.rm(destRoot, { recursive: true, force: true })
@@ -616,7 +623,6 @@ export async function updateSkillFromExtractedDir(
   await saveStore(c.dataFile, data)
 
   // 重新部署到已启用 harness
-  const settings = loadSettings(c.settingsFile)
   for (const agentId of Object.keys(entry.apps ?? {}) as AgentId[]) {
     if (entry.apps[agentId]) {
       const r = resolveAgentPaths(agentId, settings.dirOverrides, c.env)

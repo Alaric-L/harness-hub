@@ -139,6 +139,33 @@ export async function renderPrompts(){
 
 $('btn-add-prompt').addEventListener('click', ()=> openPromptForm(null));
 
+/* 「从各 harness 导入」：扫描 7 个 harness 指令文件，内容不在库中的新增「原始提示词」条目，随后全量刷新各库 */
+$('btn-import-prompts').addEventListener('click', async ()=>{
+  const btn = $('btn-import-prompts');
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = '导入中…';
+  try {
+    const res = await window.hub.importPromptsFromHarnesses();
+    // 导入结果落库 -> 全量重新拉取各 harness 提示词库（含未导入的 harness，同步最新 live 状态）
+    await Promise.all(AGENTS.map(a=>
+      window.hub.listPrompts(a.id).then(list=>{ state.promptsByAgent[a.id] = list; })
+    ));
+    renderPrompts();
+    renderDashboard();
+    if(res.added === 0){
+      showToast('各 harness 指令文件内容均已存在于库中，无需导入');
+    } else {
+      const detail = Object.entries(res.imported || {})
+        .map(([id, list])=>`${AGENT_BY(id).short} ${list.length} 条`).join('、');
+      showToast(`已从各 harness 导入 ${res.added} 条原始提示词（${detail}），可在各库中激活`);
+    }
+  } catch (err) {
+    showToast('操作失败：' + err.message);
+  } finally {
+    btn.disabled = false; btn.textContent = orig;
+  }
+});
+
 export function openPromptForm(editingId){
   state.promptEditing = editingId ? {agentId: state.currentPromptAgent, id: editingId} : null;
   const agent = AGENT_BY(state.currentPromptAgent);

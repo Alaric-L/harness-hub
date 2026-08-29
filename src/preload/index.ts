@@ -6,6 +6,9 @@ import { contextBridge, ipcRenderer } from 'electron'
 contextBridge.exposeInMainWorld('hub', {
   // 启动
   getAppInit: (...args: unknown[]) => ipcRenderer.invoke('hub:getAppInit', ...args),
+  // Harness 版本探测 / 安装（Dashboard 概览）
+  getAgentVersions: (...args: unknown[]) => ipcRenderer.invoke('hub:getAgentVersions', ...args),
+  installAgent: (...args: unknown[]) => ipcRenderer.invoke('hub:installAgent', ...args),
   // MCP
   listMcp: (...args: unknown[]) => ipcRenderer.invoke('hub:listMcp', ...args),
   saveMcp: (...args: unknown[]) => ipcRenderer.invoke('hub:saveMcp', ...args),
@@ -42,6 +45,7 @@ contextBridge.exposeInMainWorld('hub', {
   enablePrompt: (...args: unknown[]) => ipcRenderer.invoke('hub:enablePrompt', ...args),
   disablePrompt: (...args: unknown[]) => ipcRenderer.invoke('hub:disablePrompt', ...args),
   copyPrompt: (...args: unknown[]) => ipcRenderer.invoke('hub:copyPrompt', ...args),
+  importPromptsFromHarnesses: (...args: unknown[]) => ipcRenderer.invoke('hub:importPromptsFromHarnesses', ...args),
   // Harness 管理与设置
   // G3 契约扩展：getAgentsDetailed（模板 agents + 各 harness 解析后真实路径）
   getAgentsDetailed: (...args: unknown[]) => ipcRenderer.invoke('hub:getAgentsDetailed', ...args),

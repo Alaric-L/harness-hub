@@ -404,6 +404,9 @@ describe('updateSkillFromExtractedDir', () => {
   it('重拉内容覆盖 SSOT、重新部署到已启用 harness、清 hasUpdate', async () => {
     const local = await makeSkill(ssot, 'hello', 'Hello', 'Greets v1', 'v1')
     await seed([{ dir: 'hello', name: 'Hello', desc: 'Greets v1', repo: 'obra/superpowers', hasUpdate: true, apps: { dsh: true, claude: true } }])
+    // 已启用 harness 的配置目录需存在（需求：目录缺失则不部署）
+    await fs.mkdir(path.join(homes, 'dsh'), { recursive: true })
+    await fs.mkdir(path.join(homes, 'claude'), { recursive: true })
 
     const repoRoot = path.join(tmp, 'repo')
     await makeSkill(repoRoot, path.join('skills', 'hello'), 'Hello', 'Greets v2', 'v2')

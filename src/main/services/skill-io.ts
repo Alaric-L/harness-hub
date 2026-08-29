@@ -6,6 +6,7 @@ import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
 import { unzipSync } from 'fflate'
+import { assertAgentRoot } from './agent-root'
 import { AGENTS, resolveAgentPaths } from '../paths'
 import type { HomeEnv } from '../paths'
 import { loadSettings, loadStore, saveStore } from '../store'
@@ -115,13 +116,18 @@ export async function restoreSkillBackup(
   const dest = path.join(c.ssotDir, dir)
   if (await pathExists(dest)) throw new Error(`skill already exists: ${dir}`)
 
+  // 预检：恢复且部署时，所有要部署的 harness 配置目录必须存在（任一缺失则整单拒绝，不产生任何写入）
+  const deployApps: Partial<Record<AgentId, boolean>> =
+    deploy && typeof meta.apps === 'object' && meta.apps !== null && !Array.isArray(meta.apps)
+      ? (meta.apps as Partial<Record<AgentId, boolean>>)
+      : {}
+  const settings = loadSettings(c.settingsFile)
+  for (const agentId of Object.keys(deployApps) as AgentId[]) {
+    if (deployApps[agentId]) assertAgentRoot(agentId, settings.dirOverrides, c.env)
+  }
+
   await fsp.cp(path.join(backupDir, 'skill'), dest, { recursive: true })
 
-  const rawApps = meta.apps
-  const apps: Partial<Record<AgentId, boolean>> =
-    deploy && typeof rawApps === 'object' && rawApps !== null && !Array.isArray(rawApps)
-      ? (rawApps as Partial<Record<AgentId, boolean>>)
-      : {}
   const md = parseSkillMd(dest)
   const data = loadStore(c.dataFile)
   data.skills.push({
@@ -130,14 +136,13 @@ export async function restoreSkillBackup(
     desc: md?.desc ?? (typeof meta.desc === 'string' ? meta.desc : ''),
     repo: typeof meta.repo === 'string' ? meta.repo : null,
     hasUpdate: false,
-    apps
+    apps: deployApps
   })
   await saveStore(c.dataFile, data)
 
   if (deploy) {
-    const settings = loadSettings(c.settingsFile)
-    for (const agentId of Object.keys(apps) as AgentId[]) {
-      if (apps[agentId]) {
+    for (const agentId of Object.keys(deployApps) as AgentId[]) {
+      if (deployApps[agentId]) {
         const r = resolveAgentPaths(agentId, settings.dirOverrides, c.env)
         await deploySkill(c.ssotDir, dir, r.skillsDir, settings.syncMethod)
       }
@@ -323,6 +328,14 @@ export async function importSkills(
       throw new Error(`skill 已存在：${item.dir}`)
     }
   }
+  // 预检：所有要部署的 harness 配置目录必须存在（任一缺失则整批拒绝，对齐「目录不存在不导入并提示」）
+  const deployTargets = new Set<AgentId>()
+  for (const item of items) {
+    for (const agentId of Object.keys(item.apps ?? {}) as AgentId[]) {
+      if (item.apps[agentId]) deployTargets.add(agentId)
+    }
+  }
+  for (const agentId of deployTargets) assertAgentRoot(agentId, settings.dirOverrides, c.env)
   for (const item of items) {
     const source = await findSourceDir(item.dir, settings.dirOverrides, c.env)
     if (!source) throw new Error(`未找到 skill 源目录：${item.dir}`)
