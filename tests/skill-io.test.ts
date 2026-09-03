@@ -564,6 +564,41 @@ describe('共享目录扫描与导入', () => {
   })
 })
 
+describe('备份恢复部署到共享目录', () => {
+  it('restoreSkillBackup：按 meta.apps 部署到共享目录', async () => {
+    const sharedSkills = path.join(userHome, '.agents', 'skills')
+    await fs.mkdir(path.join(userHome, '.agents'), { recursive: true })
+    await makeSkill(ssot, 'hello', 'Hello', 'Greets')
+    await seed([entry('hello', 'Hello', 'Greets', { shared: true })])
+    await uninstallSkill('hello', ctx)   // 生成备份，meta.apps={shared:true}
+    const id = (await fs.readdir(backups))[0]
+    expect(id).toBeTruthy()
+
+    const list = await restoreSkillBackup(id, true, ctx)
+
+    expect(await fs.readFile(path.join(sharedSkills, 'hello', 'SKILL.md'), 'utf8')).toContain(
+      'name: Hello'
+    )
+    const sk = loadStore(dataPath).skills.find((s) => s.dir === 'hello')
+    expect(sk?.apps).toEqual({ shared: true })
+    expect(list.some((b) => b.dir === 'hello')).toBe(true)
+  })
+
+  it('deploy=true 且共享目录根缺失时拒绝（不产生任何恢复写入）', async () => {
+    await makeSkill(ssot, 'hello', 'Hello', 'Greets')
+    await seed([entry('hello', 'Hello', 'Greets', { shared: true })])
+    await uninstallSkill('hello', ctx)
+    const id = (await fs.readdir(backups))[0]
+    // userHome/.agents 未创建（卸载不建目录）——预检应拒绝
+    await expect(fs.access(path.join(userHome, '.agents'))).rejects.toThrow()
+
+    await expect(restoreSkillBackup(id, true, ctx)).rejects.toThrow(/共享目录/)
+
+    await expect(fs.access(path.join(ssot, 'hello'))).rejects.toThrow()
+    expect(loadStore(dataPath).skills).toHaveLength(0)
+  })
+})
+
 describe('backupId 校验（防路径穿越）', () => {
   it('拒绝含 ../、/、\、空与 . 的 backupId', async () => {
     for (const bad of ['', '.', '..', '../x', 'a/b', 'a\\b']) {

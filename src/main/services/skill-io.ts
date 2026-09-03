@@ -6,7 +6,7 @@ import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
 import { unzipSync } from 'fflate'
-import { assertAgentRoot, assertSkillTargetRoot } from './agent-root'
+import { assertSkillTargetRoot } from './agent-root'
 import { AGENTS, agentsSharedSkillsDir, resolveAgentPaths, resolveSkillsTargetDir } from '../paths'
 import type { HomeEnv } from '../paths'
 import { loadSettings, loadStore, saveStore } from '../store'
@@ -117,13 +117,13 @@ export async function restoreSkillBackup(
   if (await pathExists(dest)) throw new Error(`skill already exists: ${dir}`)
 
   // 预检：恢复且部署时，所有要部署的 harness 配置目录必须存在（任一缺失则整单拒绝，不产生任何写入）
-  const deployApps: Partial<Record<AgentId, boolean>> =
+  const deployApps: Partial<Record<SkillTargetId, boolean>> =
     deploy && typeof meta.apps === 'object' && meta.apps !== null && !Array.isArray(meta.apps)
-      ? (meta.apps as Partial<Record<AgentId, boolean>>)
+      ? (meta.apps as Partial<Record<SkillTargetId, boolean>>)
       : {}
   const settings = loadSettings(c.settingsFile)
-  for (const agentId of Object.keys(deployApps) as AgentId[]) {
-    if (deployApps[agentId]) assertAgentRoot(agentId, settings.dirOverrides, c.env)
+  for (const targetId of Object.keys(deployApps) as SkillTargetId[]) {
+    if (deployApps[targetId]) assertSkillTargetRoot(targetId, settings.dirOverrides, c.env)
   }
 
   await fsp.cp(path.join(backupDir, 'skill'), dest, { recursive: true })
@@ -141,10 +141,14 @@ export async function restoreSkillBackup(
   await saveStore(c.dataFile, data)
 
   if (deploy) {
-    for (const agentId of Object.keys(deployApps) as AgentId[]) {
-      if (deployApps[agentId]) {
-        const r = resolveAgentPaths(agentId, settings.dirOverrides, c.env)
-        await deploySkill(c.ssotDir, dir, r.skillsDir, settings.syncMethod)
+    for (const targetId of Object.keys(deployApps) as SkillTargetId[]) {
+      if (deployApps[targetId]) {
+        await deploySkill(
+          c.ssotDir,
+          dir,
+          resolveSkillsTargetDir(targetId, settings.dirOverrides, c.env),
+          settings.syncMethod
+        )
       }
     }
   }
