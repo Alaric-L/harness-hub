@@ -1,5 +1,5 @@
 /* ================= 详情面板（G1：MCP 预览改走 previewMcp 真实后端；G2：Skill 改读 state.skillsItems） ================= */
-import { AGENTS, AGENT_BY, SSOT_DIR } from '../data.js';
+import { AGENTS, SKILL_TARGETS, SKILL_TARGET_BY, SSOT_DIR } from '../data.js';
 import { icon } from '../icons.js';
 import { $, esc, showToast } from './common.js';
 import { state } from '../state.js';
@@ -11,14 +11,15 @@ export function openDetail(itemId, kind){
   $('detail-title').textContent = item.name;
   $('detail-sub').textContent = `${item.desc} · ${isMcp?'MCP 服务':'Skill'}`;
 
+  const targets = isMcp ? AGENTS : SKILL_TARGETS;
   const tabs = $('detail-tabs');
-  tabs.innerHTML = AGENTS.map((a,i)=>
+  tabs.innerHTML = targets.map((a,i)=>
     `<button class="detail-tab ${i===0?'active':''}" data-agent="${a.id}" title="${a.name}">
       ${icon(a.id, 14, a.name)}<span>${a.short}</span>
     </button>`).join('');
 
   function renderBody(agentId){
-    const agent = AGENT_BY(agentId);
+    const agent = SKILL_TARGET_BY(agentId);
     const enabled = !!item.apps[agentId];
     let html = '';
     if(isMcp){
@@ -69,7 +70,7 @@ description: ${item.desc}
       renderBody(t.dataset.agent);
     });
   });
-  renderBody(AGENTS[0].id);
+  renderBody(targets[0].id);
   $('detail-panel').classList.add('open');
 }
 $('detail-close').addEventListener('click', ()=> $('detail-panel').classList.remove('open'));
