@@ -24,6 +24,12 @@ export const AGENTS = [
 ];
 export function AGENT_BY(id){ return AGENTS.find(a=>a.id===id); }
 
+/* ---- Skills 部署目标：7 harness + Agent Skills 共享目录（共享置顶，仅 Skills 视图使用；
+ * MCP / 提示词 / Dashboard / 侧边栏仍只用 AGENTS ---- */
+export const SHARED_TARGET = { id:'shared', name:'共享目录', short:'共享目录', skillsDir:'~/.agents/skills' };
+export const SKILL_TARGETS = [SHARED_TARGET, ...AGENTS];
+export function SKILL_TARGET_BY(id){ return id==='shared' ? SHARED_TARGET : AGENT_BY(id); }
+
 /* ---- MCP 统一库：数据改为 IPC 拉取（state.mcpItems），不再内置 mock ---- */
 export const MCP_PRESETS = [
   {id:'playwright', name:'playwright', desc:'浏览器自动化与网页操作', tag:'自动化',
