@@ -8,7 +8,7 @@ import path from 'node:path'
 import { AGENTS } from '../src/main/paths'
 import { loadStore, saveSettings, saveStore } from '../src/main/store'
 import type { AgentId, AppSettings, McpItem, SkillInstalled } from '../src/main/types'
-import { assertAgentRoot } from '../src/main/services/agent-root'
+import { assertAgentRoot, assertSkillTargetRoot } from '../src/main/services/agent-root'
 import { bulkToggleMcp, saveMcp, toggleMcp, type McpCtx } from '../src/main/services/mcp'
 import { deploySkill, uninstallSkill, type SkillCtx } from '../src/main/services/skills'
 import { importSkills, restoreSkillBackup } from '../src/main/services/skill-io'
@@ -209,5 +209,25 @@ describe('Skills 写入目录检查', () => {
     await expect(restoreSkillBackup(id, true, skillCtx)).rejects.toThrow(/配置目录/)
     await expect(fs.access(path.join(ssot, 'hello'))).rejects.toThrow()
     expect(loadStore(dataPath).skills).toHaveLength(0)
+  })
+})
+
+describe('assertSkillTargetRoot', () => {
+  // USERPROFILE 用 getter 惰性取值：describe 体在收集期执行，彼时 tmp 尚未赋值（beforeEach 中才建）
+  const ENV = { HOME: '/none', get USERPROFILE() { return tmp } }
+
+  it('shared：<home>/.agents 存在时返回 <root>/skills（忽略 dirOverrides）', async () => {
+    await fs.mkdir(path.join(tmp, '.agents'), { recursive: true })
+    expect(assertSkillTargetRoot('shared', overrides, ENV)).toBe(path.join(tmp, '.agents', 'skills'))
+  })
+
+  it('shared：<home>/.agents 缺失时抛可读错误', () => {
+    expect(() => assertSkillTargetRoot('shared', overrides, ENV)).toThrow(
+      /未检测到 Agent Skills 共享目录/
+    )
+  })
+
+  it('harness id：委托 assertAgentRoot，返回其 skillsDir', () => {
+    expect(assertSkillTargetRoot('dsh', overrides, ENV)).toBe(path.join(homeOf('dsh'), 'skills'))
   })
 })
