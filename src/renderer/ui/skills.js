@@ -1,5 +1,5 @@
 /* ================= Skills：子视图切换 / 备份 / 导入 / 发现 / 仓库管理（G2：全部接真实后端） ================= */
-import { AGENTS, AGENT_BY } from '../data.js';
+import { SKILL_TARGETS, SKILL_TARGET_BY } from '../data.js';
 import { icon } from '../icons.js';
 import { $, showToast, askConfirm, errMsg } from './common.js';
 import { importDeployHint, importConfirmMessage } from './import-notice.js';
@@ -153,9 +153,9 @@ function renderUnmanaged(){
       <div style="flex:1;min-width:0;">
         <div style="font-weight:600;font-size:13px;">${s.name}</div>
         <div style="font-size:11.5px;color:var(--text-dim);margin-top:2px;">${s.desc}</div>
-        <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--text-faint);margin-top:3px;">${s.path} · 发现于 ${s.foundIn.map(f=>AGENT_BY(f)?AGENT_BY(f).short:f).join('、')}</div>
+        <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--text-faint);margin-top:3px;">${s.path} · 发现于 ${s.foundIn.map(f=>SKILL_TARGET_BY(f)?.short||f).join('、')}</div>
         <div class="mini-toggles">
-          ${AGENTS.map(a=>`<button class="mini-toggle ${s.foundIn.includes(a.id)?'on':''}" data-um-app="${i}" data-app="${a.id}" title="${a.name}">${icon(a.id,15,a.name)}</button>`).join('')}
+          ${SKILL_TARGETS.map(a=>`<button class="mini-toggle ${s.foundIn.includes(a.id)?'on':''}" data-um-app="${i}" data-app="${a.id}" title="${a.name}">${icon(a.id,15,a.name)}</button>`).join('')}
         </div>
       </div>
     </div>`).join('');
@@ -197,7 +197,7 @@ $('import-skills-confirm').addEventListener('click', async ()=>{
   // 二级确认：按当前部署方式告知对 harness 内已有文件的影响（只入库不部署时无此影响）
   const method = state.settings?.syncMethod || 'symlink';
   const targets = [...new Set(items.flatMap(it=>Object.entries(it.apps ?? {}).filter(([,on])=>on).map(([id])=>id)))]
-    .map(id=>AGENT_BY(id)?.short || id);
+    .map(id=>SKILL_TARGET_BY(id)?.short || id);
   const runImport = async ()=>{
     const btn = $('import-skills-confirm');
     const orig = btn.textContent;
