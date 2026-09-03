@@ -142,6 +142,7 @@ export async function toggleSkillOne(
   on: boolean,
   ctx?: SkillCtx
 ): Promise<void> {
+  void data // 签名对齐 ipc 调用方（toggleSkill / bulkToggleSkill 统一传 data），函数体不直接读库
   const c = resolveSkillCtx(ctx)
   entry.apps = entry.apps ?? {}
   const settings = loadSettings(c.settingsFile)
@@ -237,7 +238,7 @@ async function pruneSkillBackups(backupsDir: string): Promise<void> {
 }
 
 /**
- * E2 卸载：从所有启用 harness 移除部署 -> 备份 SSOT 目录到
+ * E2 卸载：从所有启用目标（harness 或共享目录）移除部署 -> 备份 SSOT 目录到
  * <backupsDir>/<yyyyMMdd_HHmmss>_<slug>/skill/ + meta.json（{name, desc, repo, backupCreatedAt, sourceDir, apps}）
  * -> 删 SSOT 目录与库条目。settings.skillUninstallBackup=false 时直接删 SSOT（不产备份）。
  */

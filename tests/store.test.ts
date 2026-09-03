@@ -40,7 +40,7 @@ function sampleData() {
       }
     ],
     skills: [
-      { dir: 'test-skill', name: 'Test Skill', desc: 'd', repo: null, hasUpdate: false, apps: { claude: true } }
+      { dir: 'test-skill', name: 'Test Skill', desc: 'd', repo: null, hasUpdate: false, apps: { claude: true, shared: true } }
     ],
     prompts: {
       ...emptyPrompts(),
@@ -67,6 +67,8 @@ describe('loadStore', () => {
     const loaded = loadStore(file)
 
     expect(loaded).toEqual(sample)
+    // spec §9：apps 含 shared 键（共享目录部署目标）往返后保留，与旧数据兼容
+    expect(loaded.skills[0]?.apps).toEqual({ claude: true, shared: true })
   })
 
   it('坏 JSON 抛错（错误消息含文件名），且原文件不被覆盖', async () => {

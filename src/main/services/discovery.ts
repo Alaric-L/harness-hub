@@ -584,7 +584,7 @@ export async function checkSkillUpdates(ctx?: SkillCtx): Promise<SkillInstalled[
 }
 
 /**
- * 更新核心：用解压出的仓库内容整体覆盖 SSOT 对应目录，并重新部署到已启用 harness
+ * 更新核心：用解压出的仓库内容整体覆盖 SSOT 对应目录，并重新部署到已启用目标（harness 或共享目录）
  * （调 E1 deploySkill）。extractedDir 为可注入路径（单测用伪造目录）。
  */
 export async function updateSkillFromExtractedDir(
@@ -636,7 +636,7 @@ export async function updateSkillFromExtractedDir(
   return data.skills
 }
 
-/** 更新单个 skill：重拉仓库 zip 覆盖 SSOT + 重新部署到已启用 harness */
+/** 更新单个 skill：重拉仓库 zip 覆盖 SSOT + 重新部署到已启用目标（harness 或共享目录） */
 export async function updateSkill(dir: string, ctx?: SkillCtx): Promise<SkillInstalled[]> {
   const c = resolveSkillCtx(ctx)
   const data = loadStore(c.dataFile)

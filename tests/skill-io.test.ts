@@ -493,7 +493,7 @@ describe('listUnmanagedSkills / importSkills', () => {
 describe('共享目录扫描与导入', () => {
   const sharedSkills = (): string => path.join(userHome, '.agents', 'skills')
 
-  /** 在共享目录放一个 skill（默认 ext-skill；appendFakeHome=false 时不建 ~/.agents 根） */
+  /** 在共享目录放一个 skill（默认 ext-skill；会一并创建 ~/.agents/skills 根目录） */
   async function seedSharedSkill(dir = 'ext-skill', createRoot = true): Promise<void> {
     if (createRoot) await fs.mkdir(sharedSkills(), { recursive: true })
     await fs.mkdir(path.join(sharedSkills(), dir), { recursive: true })
