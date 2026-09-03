@@ -4,17 +4,14 @@
 // 已接通 store 与 data-io；其余通道按契约返回类型返回安全空默认值，由 D/E/F/G 块实现。
 import fs from 'node:fs/promises'
 import { dialog, ipcMain } from 'electron'
-import path from 'node:path'
 import {
   AGENTS,
   dataFile,
   fileBackupDir,
   resolveAgentPaths,
-  settingsFile,
-  ssotSkillsDir
+  settingsFile
 } from './paths'
 import { loadSettings, loadStore, saveSettings, saveStore } from './store'
-import type { StoreData } from './store'
 import { applyImport, buildExportPayload, snapshotBeforeImport, validateBackup } from './data-io'
 import {
   bulkToggleMcp,
@@ -45,8 +42,7 @@ import {
   searchSkillsSh,
   updateSkill
 } from './services/discovery'
-import { deploySkill, undeploySkill, uninstallSkill } from './services/skills'
-import { assertAgentRoot } from './services/agent-root'
+import { toggleSkillOne, uninstallSkill } from './services/skills'
 import { getAgentVersions, installAgent } from './services/agents-version'
 import {
   deleteSkillBackup,
@@ -61,7 +57,8 @@ import type {
   AppSettings,
   McpItem,
   PromptItem,
-  SkillInstalled
+  SkillInstalled,
+  SkillTargetId
 } from './types'
 
 /** 统一错误处理：任意异常转为可读消息（渲染层 toast 展示用） */
@@ -166,32 +163,12 @@ ipcMain.handle('hub:listSkills', async () => {
   }
 })
 
-/** 单个 skill 的部署/移除语义（toggleSkill 与 bulkToggleSkill 共用；错误由调用方聚合） */
-async function toggleSkillOne(
-  data: StoreData,
-  entry: SkillInstalled,
-  agentId: AgentId,
-  on: boolean
-): Promise<void> {
-  entry.apps = entry.apps ?? {}
-  const settings = loadSettings(settingsFile())
-  // 部署前检查该 harness 的最外层配置目录存在（目录覆盖已生效）；关闭方向无需检查
-  const r = on ? assertAgentRoot(agentId, settings.dirOverrides) : resolveAgentPaths(agentId, settings.dirOverrides)
-  if (on) {
-    await deploySkill(ssotSkillsDir(), entry.dir, r.skillsDir, settings.syncMethod)
-    entry.apps[agentId] = true
-  } else {
-    await undeploySkill(path.join(r.skillsDir, entry.dir))
-    delete entry.apps[agentId]
-  }
-}
-
-ipcMain.handle('hub:toggleSkill', async (_event, dir: string, agentId: AgentId, on: boolean) => {
+ipcMain.handle('hub:toggleSkill', async (_event, dir: string, targetId: SkillTargetId, on: boolean) => {
   try {
     const data = loadStore(dataFile())
     const entry = data.skills.find((s) => s.dir === dir)
     if (!entry) throw new Error(`skill not found: ${dir}`)
-    await toggleSkillOne(data, entry, agentId, on)
+    await toggleSkillOne(data, entry, targetId, on)
     await saveStore(dataFile(), data)
     return data.skills
   } catch (err) {
@@ -199,14 +176,14 @@ ipcMain.handle('hub:toggleSkill', async (_event, dir: string, agentId: AgentId, 
   }
 })
 
-ipcMain.handle('hub:bulkToggleSkill', async (_event, agentId: AgentId, on: boolean) => {
+ipcMain.handle('hub:bulkToggleSkill', async (_event, targetId: SkillTargetId, on: boolean) => {
   try {
     const data = loadStore(dataFile())
     // 错误聚合：单条失败不中断，收集后返回，避免中途放弃
     const errors: string[] = []
     for (const entry of data.skills) {
       try {
-        await toggleSkillOne(data, entry, agentId, on)
+        await toggleSkillOne(data, entry, targetId, on)
       } catch (err) {
         errors.push(`${entry.dir}: ${errMessage(err)}`)
       }
@@ -274,7 +251,7 @@ ipcMain.handle('hub:listUnmanagedSkills', async () => {
 
 ipcMain.handle(
   'hub:importSkills',
-  async (_event, items: { dir: string; apps: Partial<Record<AgentId, boolean>> }[]) => {
+  async (_event, items: { dir: string; apps: Partial<Record<SkillTargetId, boolean>> }[]) => {
     try {
       return await importSkills(items)
     } catch (err) {

@@ -7,8 +7,10 @@ import path from 'node:path'
 import { AGENTS, dataFile, resolveSkillsTargetDir, settingsFile, skillBackupsDir, ssotSkillsDir } from '../paths'
 import type { HomeEnv } from '../paths'
 import { loadSettings, loadStore, saveStore } from '../store'
+import type { StoreData } from '../store'
 import { parseSkillMd } from '../skillmd'
 import type { SkillInstalled, SkillTargetId } from '../types'
+import { assertSkillTargetRoot } from './agent-root'
 
 export type DeployMethod = 'auto' | 'symlink' | 'copy'
 export type DeployResult = 'symlink' | 'copy'
@@ -126,6 +128,34 @@ export async function deploySkill(
 export async function undeploySkill(targetDir: string): Promise<void> {
   if (!(await pathExists(targetDir))) return
   await fs.rm(targetDir, { recursive: true, force: true })
+}
+
+/**
+ * 单个 skill 的部署/移除语义（ipc 的 toggleSkill 与 bulkToggleSkill 共用；错误由调用方聚合）。
+ * 'shared' 目标部署到 <home>/.agents/skills（写入前检查 <home>/.agents 存在）；不落库——
+ * 调用方负责 saveStore。
+ */
+export async function toggleSkillOne(
+  data: StoreData,
+  entry: SkillInstalled,
+  targetId: SkillTargetId,
+  on: boolean,
+  ctx?: SkillCtx
+): Promise<void> {
+  const c = resolveSkillCtx(ctx)
+  entry.apps = entry.apps ?? {}
+  const settings = loadSettings(c.settingsFile)
+  // 部署前检查目标根目录存在（harness 查其最外层配置目录；shared 查 <home>/.agents）；关闭方向无需检查
+  const skillsDir = on
+    ? assertSkillTargetRoot(targetId, settings.dirOverrides, c.env)
+    : resolveSkillsTargetDir(targetId, settings.dirOverrides, c.env)
+  if (on) {
+    await deploySkill(c.ssotDir, entry.dir, skillsDir, settings.syncMethod)
+    entry.apps[targetId] = true
+  } else {
+    await undeploySkill(path.join(skillsDir, entry.dir))
+    delete entry.apps[targetId]
+  }
 }
 
 // ---- E2：卸载备份（结构对齐 cc-switch skill.rs:3490-3540，备份自描述不依赖库） ----

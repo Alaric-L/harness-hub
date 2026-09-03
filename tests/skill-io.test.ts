@@ -8,7 +8,7 @@ import path from 'node:path'
 import { strToU8, zipSync } from 'fflate'
 import { loadSettings, loadStore, saveSettings, saveStore } from '../src/main/store'
 import type { AgentId, SkillInstalled, SkillTargetId } from '../src/main/types'
-import { deploySkill, uninstallSkill, type SkillCtx } from '../src/main/services/skills'
+import { deploySkill, toggleSkillOne, uninstallSkill, type SkillCtx } from '../src/main/services/skills'
 import {
   deleteSkillBackup,
   importSkills,
@@ -605,5 +605,46 @@ describe('backupId 校验（防路径穿越）', () => {
       await expect(restoreSkillBackup(bad, false, ctx)).rejects.toThrow()
       await expect(deleteSkillBackup(bad, ctx)).rejects.toThrow()
     }
+  })
+})
+
+describe('toggleSkillOne（共享目录路由）', () => {
+  it('开启 shared：部署到 <home>/.agents/skills 并置 apps.shared', async () => {
+    await fs.mkdir(path.join(userHome, '.agents'), { recursive: true })
+    await makeSkill(ssot, 'hello', 'Hello', 'Greets')
+    await seed([entry('hello', 'Hello', 'Greets')])
+    const data = loadStore(dataPath)
+    const e = data.skills[0]!
+
+    await toggleSkillOne(data, e, 'shared', true, ctx)
+
+    expect(e.apps).toEqual({ shared: true })
+    expect(
+      await fs.readFile(path.join(userHome, '.agents', 'skills', 'hello', 'SKILL.md'), 'utf8')
+    ).toContain('name: Hello')
+  })
+
+  it('开启 shared 但 <home>/.agents 缺失：抛可读错误、apps 不变、不产生部署', async () => {
+    await makeSkill(ssot, 'hello', 'Hello', 'Greets')
+    await seed([entry('hello', 'Hello', 'Greets')])
+    const data = loadStore(dataPath)
+    const e = data.skills[0]!
+
+    await expect(toggleSkillOne(data, e, 'shared', true, ctx)).rejects.toThrow(/共享目录/)
+    expect(e.apps).toEqual({})
+  })
+
+  it('关闭 shared：移除共享目录部署并清 apps.shared', async () => {
+    const sharedSkills = path.join(userHome, '.agents', 'skills')
+    await makeSkill(ssot, 'hello', 'Hello', 'Greets')
+    await deploySkill(ssot, 'hello', sharedSkills, 'auto')
+    await seed([entry('hello', 'Hello', 'Greets', { shared: true })])
+    const data = loadStore(dataPath)
+    const e = data.skills[0]!
+
+    await toggleSkillOne(data, e, 'shared', false, ctx)
+
+    expect(e.apps).toEqual({})
+    await expect(fs.lstat(path.join(sharedSkills, 'hello'))).rejects.toThrow()
   })
 })
