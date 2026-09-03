@@ -10,7 +10,7 @@ describe('SKILL_TARGETS / SKILL_TARGET_BY', () => {
   })
 
   it('SHARED_TARGET 关键字段', () => {
-    expect(SHARED_TARGET).toMatchObject({ id: 'shared', name: '共享目录', skillsDir: '~/.agents/skills' })
+    expect(SHARED_TARGET).toMatchObject({ id: 'shared', name: '共享目录(~/.agents/skills)', skillsDir: '~/.agents/skills' })
   })
 
   it('SKILL_TARGET_BY：shared 命中共享目标；harness id 回落 AGENT_BY；未知 id 为 undefined', () => {
