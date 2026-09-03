@@ -7,7 +7,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { strToU8, zipSync } from 'fflate'
 import { loadSettings, loadStore, saveSettings, saveStore } from '../src/main/store'
-import type { AgentId, SkillInstalled } from '../src/main/types'
+import type { AgentId, SkillInstalled, SkillTargetId } from '../src/main/types'
 import { deploySkill, uninstallSkill, type SkillCtx } from '../src/main/services/skills'
 import {
   deleteSkillBackup,
@@ -21,6 +21,7 @@ import {
 const AGENT_IDS: AgentId[] = ['dsh', 'claude', 'codex', 'gemini', 'grok', 'opencode', 'hermes']
 
 let tmp: string
+let userHome: string
 let homes: string
 let ssot: string
 let backups: string
@@ -34,6 +35,7 @@ function skillsDirOf(agentId: AgentId): string {
 
 beforeEach(async () => {
   tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'skill-io-'))
+  userHome = path.join(tmp, 'user-home')
   homes = path.join(tmp, 'homes')
   ssot = path.join(tmp, 'ssot')
   backups = path.join(tmp, 'skill-backups')
@@ -47,7 +49,8 @@ beforeEach(async () => {
     backupBeforeWrite: true,
     skillUninstallBackup: true
   })
-  ctx = { dataFile: dataPath, settingsFile: settingsPath, ssotDir: ssot, backupsDir: backups }
+  ctx = { dataFile: dataPath, settingsFile: settingsPath, ssotDir: ssot, backupsDir: backups,
+          env: { HOME: userHome, USERPROFILE: userHome } }
 })
 
 afterEach(async () => {
@@ -72,7 +75,7 @@ function entry(
   dir: string,
   name: string,
   desc = '',
-  apps: Partial<Record<AgentId, boolean>> = {}
+  apps: Partial<Record<SkillTargetId, boolean>> = {}
 ): SkillInstalled {
   return { dir, name, desc, repo: null, hasUpdate: false, apps }
 }
@@ -147,6 +150,17 @@ describe('uninstallSkill', () => {
 
     await expect(fs.lstat(path.join(skillsDirOf('dsh'), 'hello'))).rejects.toThrow()
     await expect(fs.lstat(path.join(skillsDirOf('claude'), 'hello'))).rejects.toThrow()
+  })
+
+  it('卸载前从共享目录移除部署', async () => {
+    const sharedSkills = path.join(userHome, '.agents', 'skills')
+    await makeSkill(ssot, 'hello', 'Hello', 'Greets')
+    await seed([entry('hello', 'Hello', 'Greets', { shared: true })])
+    await deploySkill(ssot, 'hello', sharedSkills, 'auto')
+
+    await uninstallSkill('hello', ctx)
+
+    await expect(fs.lstat(path.join(sharedSkills, 'hello'))).rejects.toThrow()
   })
 
   it('backup 开关关闭时直接删 SSOT，不产生备份', async () => {

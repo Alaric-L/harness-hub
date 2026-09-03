@@ -4,11 +4,11 @@
 // 且 fs.lstatSync().isSymbolicLink() 对 junction 亦返回 true——检测/清理与 symlink 完全兼容。
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { AGENTS, dataFile, resolveAgentPaths, settingsFile, skillBackupsDir, ssotSkillsDir } from '../paths'
+import { AGENTS, dataFile, resolveSkillsTargetDir, settingsFile, skillBackupsDir, ssotSkillsDir } from '../paths'
 import type { HomeEnv } from '../paths'
 import { loadSettings, loadStore, saveStore } from '../store'
 import { parseSkillMd } from '../skillmd'
-import type { AgentId, SkillInstalled } from '../types'
+import type { SkillInstalled, SkillTargetId } from '../types'
 
 export type DeployMethod = 'auto' | 'symlink' | 'copy'
 export type DeployResult = 'symlink' | 'copy'
@@ -219,11 +219,10 @@ export async function uninstallSkill(dir: string, ctx?: SkillCtx): Promise<Skill
   const settings = loadSettings(c.settingsFile)
   const source = path.join(c.ssotDir, dir)
 
-  // 1. 从所有启用 harness 移除部署
-  for (const agentId of Object.keys(entry.apps ?? {}) as AgentId[]) {
-    if (entry.apps[agentId]) {
-      const r = resolveAgentPaths(agentId, settings.dirOverrides, c.env)
-      await undeploySkill(path.join(r.skillsDir, dir))
+  // 1. 从所有启用目标（harness 或共享目录）移除部署
+  for (const targetId of Object.keys(entry.apps ?? {}) as SkillTargetId[]) {
+    if (entry.apps[targetId]) {
+      await undeploySkill(path.join(resolveSkillsTargetDir(targetId, settings.dirOverrides, c.env), dir))
     }
   }
 
