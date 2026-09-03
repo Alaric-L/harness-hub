@@ -165,7 +165,24 @@ function renderUnmanaged(){
       btn.classList.toggle('on');
     });
   });
+  syncToggleAllLabel();
 }
+
+/* 全选/取消全选：单按钮动态文案（文案 = 点击后将执行的动作），随列表渲染与手动勾选实时同步 */
+function syncToggleAllLabel(){
+  const boxes = [...document.querySelectorAll('#unmanaged-list input[data-um]')];
+  const all = boxes.length > 0 && boxes.every(b=>b.checked);
+  $('import-skills-toggle-all').textContent = all ? '取消全选' : '全选';
+}
+$('import-skills-toggle-all').addEventListener('click', ()=>{
+  const boxes = [...document.querySelectorAll('#unmanaged-list input[data-um]')];
+  const all = boxes.length > 0 && boxes.every(b=>b.checked);
+  boxes.forEach(b=>{ b.checked = !all; });
+  syncToggleAllLabel();
+});
+$('unmanaged-list').addEventListener('change', e=>{
+  if(e.target && e.target.matches && e.target.matches('input[data-um]')) syncToggleAllLabel();
+});
 $('import-skills-confirm').addEventListener('click', async ()=>{
   const selected = [...document.querySelectorAll('#unmanaged-list input[data-um]:checked')].map(c=>parseInt(c.dataset.um,10));
   if(selected.length===0){ showToast('请至少选择一个 Skill'); return; }
