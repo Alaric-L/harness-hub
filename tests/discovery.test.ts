@@ -434,3 +434,40 @@ describe('updateSkillFromExtractedDir', () => {
     await expect(updateSkillFromExtractedDir('hello', path.join(tmp, 'empty-repo'), ctx)).rejects.toThrow(/未找到/)
   })
 })
+
+// ========== 更新核心：共享目录路由（自建 ctx 变体：外层 beforeEach ctx 无 env） ==========
+
+describe('updateSkillFromExtractedDir（共享目录路由）', () => {
+  it('更新后重部署到共享目录', async () => {
+    const userHome = path.join(tmp, 'user-home')
+    const sharedSkills = path.join(userHome, '.agents', 'skills')
+    await fs.mkdir(path.join(userHome, '.agents'), { recursive: true })
+    const c: SkillCtx = { ...ctx, env: { HOME: userHome, USERPROFILE: userHome } }
+    await makeSkill(ssot, 'hello', 'Hello', 'Greets v1', 'v1')
+    await seed([
+      { dir: 'hello', name: 'Hello', desc: '', repo: 'obra/superpowers', hasUpdate: true, apps: { shared: true } }
+    ])
+    const repoRoot = path.join(tmp, 'repo')
+    await makeSkill(repoRoot, path.join('skills', 'hello'), 'Hello', 'Greets v2', 'v2')
+
+    const result = await updateSkillFromExtractedDir('hello', repoRoot, c)
+
+    const updated = result.find((s) => s.dir === 'hello')
+    expect(updated).toMatchObject({ name: 'Hello', desc: 'Greets v2', hasUpdate: false })
+    expect(await fs.readFile(path.join(sharedSkills, 'hello', 'SKILL.md'), 'utf8')).toContain('body v2')
+  })
+
+  it('apps.shared 开启但 <home>/.agents 缺失时拒绝更新（SSOT 不被改动）', async () => {
+    const userHome = path.join(tmp, 'user-home2')   // 不建 .agents
+    const c: SkillCtx = { ...ctx, env: { HOME: userHome, USERPROFILE: userHome } }
+    await makeSkill(ssot, 'hello', 'Hello', 'Greets v1', 'v1')
+    await seed([
+      { dir: 'hello', name: 'Hello', desc: '', repo: 'obra/superpowers', hasUpdate: true, apps: { shared: true } }
+    ])
+    const repoRoot = path.join(tmp, 'repo')
+    await makeSkill(repoRoot, path.join('skills', 'hello'), 'Hello', 'Greets v2', 'v2')
+
+    await expect(updateSkillFromExtractedDir('hello', repoRoot, c)).rejects.toThrow(/共享目录/)
+    expect(await fs.readFile(path.join(ssot, 'hello', 'SKILL.md'), 'utf8')).toContain('body v1')
+  })
+})

@@ -15,13 +15,13 @@ import path from 'node:path'
 import os from 'node:os'
 import { createHash } from 'node:crypto'
 import { unzipSync } from 'fflate'
-import { resolveAgentPaths } from '../paths'
-import { assertAgentRoot } from './agent-root'
+import { resolveSkillsTargetDir } from '../paths'
+import { assertSkillTargetRoot } from './agent-root'
 import { loadSettings, loadStore, saveStore } from '../store'
 import { parseSkillMd } from '../skillmd'
 import { deploySkill, resolveSkillCtx, sanitizeSkillDirName } from './skills'
 import type { SkillCtx } from './skills'
-import type { AgentId, RepoConfig, SkillInstalled } from '../types'
+import type { SkillTargetId, RepoConfig, SkillInstalled } from '../types'
 
 // ---- 类型 ----
 
@@ -604,10 +604,10 @@ export async function updateSkillFromExtractedDir(
   const source = resolveSkillSourceDir(extractedDir, match.directory)
   if (!source) throw new Error(`未找到 skill 目录：${dir}`)
 
-  // 预检：所有已启用 harness 的配置目录必须存在（任一缺失则拒绝更新，SSOT 不做任何改动）
+  // 预检：所有已启用部署目标（harness 或共享目录）的根目录必须存在（任一缺失则拒绝更新，SSOT 不做任何改动）
   const settings = loadSettings(c.settingsFile)
-  for (const agentId of Object.keys(entry.apps ?? {}) as AgentId[]) {
-    if (entry.apps[agentId]) assertAgentRoot(agentId, settings.dirOverrides, c.env)
+  for (const targetId of Object.keys(entry.apps ?? {}) as SkillTargetId[]) {
+    if (entry.apps[targetId]) assertSkillTargetRoot(targetId, settings.dirOverrides, c.env)
   }
 
   // 覆盖 SSOT 目录
@@ -622,11 +622,15 @@ export async function updateSkillFromExtractedDir(
   entry.hasUpdate = false
   await saveStore(c.dataFile, data)
 
-  // 重新部署到已启用 harness
-  for (const agentId of Object.keys(entry.apps ?? {}) as AgentId[]) {
-    if (entry.apps[agentId]) {
-      const r = resolveAgentPaths(agentId, settings.dirOverrides, c.env)
-      await deploySkill(c.ssotDir, dir, r.skillsDir, settings.syncMethod)
+  // 重新部署到已启用部署目标（harness 或共享目录）
+  for (const targetId of Object.keys(entry.apps ?? {}) as SkillTargetId[]) {
+    if (entry.apps[targetId]) {
+      await deploySkill(
+        c.ssotDir,
+        dir,
+        resolveSkillsTargetDir(targetId, settings.dirOverrides, c.env),
+        settings.syncMethod
+      )
     }
   }
   return data.skills
