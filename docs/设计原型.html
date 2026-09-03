@@ -520,9 +520,10 @@
           <h4>Skill 同步方式</h4>
           <p class="hint">将中央 Skill 库分发到各 harness skills 目录的方式。</p>
           <div class="radio-row" id="sync-method-row">
-            <label class="radio-pill active"><input type="radio" name="syncm" checked>自动（优先符号链接，失败回退复制）</label>
-            <label class="radio-pill"><input type="radio" name="syncm">仅符号链接</label>
-            <label class="radio-pill"><input type="radio" name="syncm">仅复制</label>
+            <!-- auto 模式已收敛：默认 symlink；如需恢复取消注释即可（主进程分支保留） -->
+            <!-- <label class="radio-pill active" data-sync="auto"><input type="radio" name="syncm" checked>自动（优先符号链接，失败回退复制）</label> -->
+            <label class="radio-pill active" data-sync="symlink"><input type="radio" name="syncm" checked>仅符号链接</label>
+            <label class="radio-pill" data-sync="copy"><input type="radio" name="syncm">仅复制</label>
           </div>
         </div>
         <div class="settings-section">
@@ -695,6 +696,10 @@
   <div class="modal modal-lg">
     <h3>从 harness 导入 Skills</h3>
     <p class="modal-sub">扫描到以下未纳管的 Skill（已存在于 harness 目录但不在中央库中），选择要导入的条目及其启用范围</p>
+    <p class="modal-sub" id="import-deploy-hint" style="white-space:pre-line;color:var(--warn,#d97706);"></p>
+    <div style="display:flex;justify-content:flex-end;margin:0 0 8px;">
+      <button class="btn btn-ghost btn-sm" id="import-skills-toggle-all">全选</button>
+    </div>
     <div class="modal-scroll" id="unmanaged-list"></div>
     <div class="modal-actions">
       <button class="btn btn-ghost" id="import-skills-close">取消</button>
@@ -1573,11 +1578,50 @@ function renderBackups(){
 }
 
 /* ---- 从 harness 导入 ---- */
+/* 导入部署提示/确认文案（与实现 src/renderer/ui/import-notice.js 保持一致；auto 文案保留备恢复） */
+let SYNC_METHOD = 'symlink';
+const IMPORT_HINTS = {
+  symlink: '部署方式：符号链接——在 harness 的 skills 目录创建指向中央库的链接（不复制文件，中央库改动实时生效）；已存在同名目录的位置会被删除并替换为链接，原始文件仅保留在中央库一份。',
+  copy: '部署方式：复制——向 harness 的 skills 目录写入中央库的完整副本；已存在同名目录的位置会被整体替换为副本（内容与导入时一致），此后 harness 中的副本与中央库互不联动。',
+  auto: '部署方式：自动——按目标位置现状二选一：\n- 位置为空 → 创建符号链接：harness 内仅放一个指向中央库的链接，原始文件只保留在中央库一份，中央库改动实时生效；\n- 已有同名目录 → 复制替换：原目录被删除并替换为中央库副本（内容与导入时一致），此后与中央库互不联动。\n来源 harness 已存在原目录，将按“复制替换”处理。'
+};
+const IMPORT_CONFIRM = {
+  symlink: (n,t)=>`将以符号链接方式部署 ${n} 个 Skill 到 ${t}。已存在同名目录的位置将被删除并替换为链接，原始文件仅保留在中央库。是否继续？`,
+  copy: (n,t)=>`将以复制方式部署 ${n} 个 Skill 到 ${t}。已存在同名目录的位置将被整体替换为副本（内容与导入时一致），此后与中央库互不联动。是否继续？`,
+  auto: (n,t)=>`将以自动方式部署 ${n} 个 Skill 到 ${t}：已有同名目录的位置将复制替换为副本（原目录删除），其余位置将创建符号链接。是否继续？`
+};
+/* 设置页同步方式 pill 与原型内状态联动 */
+document.querySelectorAll('#sync-method-row [data-sync]').forEach(pill=>{
+  pill.addEventListener('click', ()=>{
+    document.querySelectorAll('#sync-method-row .radio-pill').forEach(p=>p.classList.remove('active'));
+    pill.classList.add('active');
+    pill.querySelector('input').checked = true;
+    SYNC_METHOD = pill.dataset.sync;
+  });
+});
+
 $('btn-skill-import').addEventListener('click', ()=>{
   renderUnmanaged();
+  $('import-deploy-hint').textContent = IMPORT_HINTS[SYNC_METHOD] || IMPORT_HINTS.symlink;
   $('modal-import-skills').classList.add('open');
 });
 $('import-skills-close').addEventListener('click', ()=> $('modal-import-skills').classList.remove('open'));
+
+/* 全选/取消全选：单按钮动态文案（文案 = 点击后将执行的动作），随列表渲染与手动勾选实时同步 */
+function syncToggleAllLabel(){
+  const boxes = [...document.querySelectorAll('#unmanaged-list input[data-um]')];
+  const all = boxes.length > 0 && boxes.every(b=>b.checked);
+  $('import-skills-toggle-all').textContent = all ? '取消全选' : '全选';
+}
+$('import-skills-toggle-all').addEventListener('click', ()=>{
+  const boxes = [...document.querySelectorAll('#unmanaged-list input[data-um]')];
+  const all = boxes.length > 0 && boxes.every(b=>b.checked);
+  boxes.forEach(b=>{ b.checked = !all; });
+  syncToggleAllLabel();
+});
+$('unmanaged-list').addEventListener('change', e=>{
+  if(e.target && e.target.matches && e.target.matches('input[data-um]')) syncToggleAllLabel();
+});
 
 function renderUnmanaged(){
   $('unmanaged-list').innerHTML = UNMANAGED_SKILLS.map((s,i)=>`
@@ -1598,24 +1642,33 @@ function renderUnmanaged(){
       btn.classList.toggle('on');
     });
   });
+  syncToggleAllLabel();
 }
 $('import-skills-confirm').addEventListener('click', ()=>{
   const selected = [...document.querySelectorAll('#unmanaged-list input[data-um]:checked')].map(c=>parseInt(c.dataset.um,10));
   if(selected.length===0){ showToast('请至少选择一个 Skill'); return; }
-  selected.forEach(i=>{
-    const s = UNMANAGED_SKILLS[i];
-    const apps = {};
-    document.querySelectorAll(`#unmanaged-list [data-um-app="${i}"]`).forEach(btn=>{
-      apps[btn.dataset.app] = btn.classList.contains('on') ? 1 : 0;
+  const targets = [...new Set(selected.flatMap(i=>[...document.querySelectorAll(`#unmanaged-list [data-um-app="${i}"]`)].filter(b=>b.classList.contains('on')).map(b=>b.dataset.app)))]
+    .map(id=>AGENT_BY(id)?AGENT_BY(id).short:id);
+  const runImport = ()=>{
+    selected.forEach(i=>{
+      const s = UNMANAGED_SKILLS[i];
+      const apps = {};
+      document.querySelectorAll(`#unmanaged-list [data-um-app="${i}"]`).forEach(btn=>{
+        apps[btn.dataset.app] = btn.classList.contains('on') ? 1 : 0;
+      });
+      SKILLS_INSTALLED.push({dir:s.dir, name:s.name, desc:s.desc, repo:null, hasUpdate:false, apps});
     });
-    SKILLS_INSTALLED.push({dir:s.dir, name:s.name, desc:s.desc, repo:null, hasUpdate:false, apps});
-  });
-  UNMANAGED_SKILLS.splice(0);
-  renderCountBar('skills-countbar', SKILLS_INSTALLED, 'skill');
-  renderMatrix('skill');
-  renderDashboard();
-  $('modal-import-skills').classList.remove('open');
-  showToast(`已导入 ${selected.length} 个 Skill 到中央库`);
+    UNMANAGED_SKILLS.splice(0);
+    renderCountBar('skills-countbar', SKILLS_INSTALLED, 'skill');
+    renderMatrix('skill');
+    renderDashboard();
+    $('modal-import-skills').classList.remove('open');
+    showToast(`已导入 ${selected.length} 个 Skill 到中央库`);
+  };
+  const msg = targets.length===0
+    ? `将导入 ${selected.length} 个 Skill 到中央库（只入库、不部署到任何 harness，不会修改 harness 内文件）。是否继续？`
+    : IMPORT_CONFIRM[SYNC_METHOD](selected.length, targets.join('、'));
+  askConfirm('确认导入', msg, runImport, '开始导入');
 });
 
 /* ---- 发现页 ---- */
