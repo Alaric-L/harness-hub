@@ -39,7 +39,7 @@ function defaultStore(): StoreData {
 function defaultSettings(): AppSettings {
   return {
     dirOverrides: {},
-    syncMethod: 'auto',
+    syncMethod: 'symlink',
     backupBeforeWrite: true,
     skillUninstallBackup: true
   }

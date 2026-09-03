@@ -209,8 +209,9 @@
           <h4>Skill 同步方式</h4>
           <p class="hint">将中央 Skill 库分发到各 harness skills 目录的方式。</p>
           <div class="radio-row" id="sync-method-row">
-            <label class="radio-pill active" data-sync="auto"><input type="radio" name="syncm" checked>自动（优先符号链接，失败回退复制）</label>
-            <label class="radio-pill" data-sync="symlink"><input type="radio" name="syncm">仅符号链接</label>
+            <!-- auto 模式已收敛：默认 symlink；如需恢复取消注释即可（后端 auto 分支仍在） -->
+            <!-- <label class="radio-pill active" data-sync="auto"><input type="radio" name="syncm" checked>自动（优先符号链接，失败回退复制）</label> -->
+            <label class="radio-pill active" data-sync="symlink"><input type="radio" name="syncm" checked>仅符号链接</label>
             <label class="radio-pill" data-sync="copy"><input type="radio" name="syncm">仅复制</label>
           </div>
         </div>
@@ -384,6 +385,7 @@
   <div class="modal modal-lg">
     <h3>从 harness 导入 Skills</h3>
     <p class="modal-sub">扫描到以下未纳管的 Skill（已存在于 harness 目录但不在中央库中），选择要导入的条目及其启用范围</p>
+    <p class="modal-sub" id="import-deploy-hint" style="white-space:pre-line;color:var(--warn,#d97706);"></p>
     <div class="modal-scroll" id="unmanaged-list"></div>
     <div class="modal-actions">
       <button class="btn btn-ghost" id="import-skills-close">取消</button>

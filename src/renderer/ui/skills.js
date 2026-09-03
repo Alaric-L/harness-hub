@@ -2,6 +2,7 @@
 import { AGENTS, AGENT_BY } from '../data.js';
 import { icon } from '../icons.js';
 import { $, showToast, askConfirm, errMsg } from './common.js';
+import { importDeployHint, importConfirmMessage } from './import-notice.js';
 import { state } from '../state.js';
 import { renderCountBar, renderMatrix } from './matrix.js';
 import { renderDashboard } from './dashboard.js';
@@ -140,6 +141,7 @@ $('btn-skill-import').addEventListener('click', async ()=>{
   }
   btn.disabled = false; btn.textContent = orig;
   renderUnmanaged();
+  $('import-deploy-hint').textContent = importDeployHint(state.settings?.syncMethod || 'symlink');
   $('modal-import-skills').classList.add('open');
 });
 $('import-skills-close').addEventListener('click', ()=> $('modal-import-skills').classList.remove('open'));
@@ -175,22 +177,29 @@ $('import-skills-confirm').addEventListener('click', async ()=>{
     });
     return {dir:s.dir, apps};
   });
-  const btn = $('import-skills-confirm');
-  const orig = btn.textContent;
-  btn.disabled = true; btn.textContent = '导入中…';
-  try {
-    state.skillsItems = await window.hub.importSkills(items);
-    state.unmanagedSkills = [];
-    renderCountBar('skills-countbar', state.skillsItems, 'skill');
-    renderMatrix('skill');
-    renderDashboard();
-    $('modal-import-skills').classList.remove('open');
-    showToast(`已导入 ${items.length} 个 Skill 到中央库`);
-  } catch (err) {
-    showToast('操作失败：' + err.message);
-  } finally {
-    btn.disabled = false; btn.textContent = orig;
-  }
+  // 二级确认：按当前部署方式告知对 harness 内已有文件的影响（只入库不部署时无此影响）
+  const method = state.settings?.syncMethod || 'symlink';
+  const targets = [...new Set(items.flatMap(it=>Object.entries(it.apps ?? {}).filter(([,on])=>on).map(([id])=>id)))]
+    .map(id=>AGENT_BY(id)?.short || id);
+  const runImport = async ()=>{
+    const btn = $('import-skills-confirm');
+    const orig = btn.textContent;
+    btn.disabled = true; btn.textContent = '导入中…';
+    try {
+      state.skillsItems = await window.hub.importSkills(items);
+      state.unmanagedSkills = [];
+      renderCountBar('skills-countbar', state.skillsItems, 'skill');
+      renderMatrix('skill');
+      renderDashboard();
+      $('modal-import-skills').classList.remove('open');
+      showToast(`已导入 ${items.length} 个 Skill 到中央库`);
+    } catch (err) {
+      showToast('操作失败：' + err.message);
+    } finally {
+      btn.disabled = false; btn.textContent = orig;
+    }
+  };
+  askConfirm('确认导入', importConfirmMessage(method, items.length, targets), runImport, '开始导入');
 });
 
 /* ---- 发现页 ---- */
