@@ -33,6 +33,24 @@ function skillsDirOf(agentId: AgentId): string {
   return path.join(homes, agentId, 'skills')
 }
 
+/** 在 dsh + claude 两个 harness 放同名 manual skill，dsh 单独放 other */
+async function seedHarnessSkills(): Promise<void> {
+  for (const id of ['dsh', 'claude'] as AgentId[]) {
+    await fs.mkdir(path.join(skillsDirOf(id), 'manual'), { recursive: true })
+    await fs.writeFile(
+      path.join(skillsDirOf(id), 'manual', 'SKILL.md'),
+      '---\nname: Manual\ndescription: hand placed\n---\nx',
+      'utf8'
+    )
+  }
+  await fs.mkdir(path.join(skillsDirOf('dsh'), 'other'), { recursive: true })
+  await fs.writeFile(
+    path.join(skillsDirOf('dsh'), 'other', 'SKILL.md'),
+    '---\nname: Other\n---\nx',
+    'utf8'
+  )
+}
+
 beforeEach(async () => {
   tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'skill-io-'))
   userHome = path.join(tmp, 'user-home')
@@ -419,24 +437,6 @@ describe('installSkillZip', () => {
 })
 
 describe('listUnmanagedSkills / importSkills', () => {
-  /** 在 dsh + claude 两个 harness 放同名 manual skill，dsh 单独放 other */
-  async function seedHarnessSkills(): Promise<void> {
-    for (const id of ['dsh', 'claude'] as AgentId[]) {
-      await fs.mkdir(path.join(skillsDirOf(id), 'manual'), { recursive: true })
-      await fs.writeFile(
-        path.join(skillsDirOf(id), 'manual', 'SKILL.md'),
-        '---\nname: Manual\ndescription: hand placed\n---\nx',
-        'utf8'
-      )
-    }
-    await fs.mkdir(path.join(skillsDirOf('dsh'), 'other'), { recursive: true })
-    await fs.writeFile(
-      path.join(skillsDirOf('dsh'), 'other', 'SKILL.md'),
-      '---\nname: Other\n---\nx',
-      'utf8'
-    )
-  }
-
   it('扫描各 harness skillsDir：有 SKILL.md 且不在库中的目录 -> UnmanagedSkill，foundIn 合并', async () => {
     await seedHarnessSkills()
     await seed([entry('hello', 'Hello')])
@@ -487,6 +487,80 @@ describe('listUnmanagedSkills / importSkills', () => {
     await seedHarnessSkills()
     await seed([entry('manual', 'Manual')])
     await expect(importSkills([{ dir: 'manual', apps: {} }], ctx)).rejects.toThrow()
+  })
+})
+
+describe('共享目录扫描与导入', () => {
+  const sharedSkills = (): string => path.join(userHome, '.agents', 'skills')
+
+  /** 在共享目录放一个 skill（默认 ext-skill；appendFakeHome=false 时不建 ~/.agents 根） */
+  async function seedSharedSkill(dir = 'ext-skill', createRoot = true): Promise<void> {
+    if (createRoot) await fs.mkdir(sharedSkills(), { recursive: true })
+    await fs.mkdir(path.join(sharedSkills(), dir), { recursive: true })
+    await fs.writeFile(
+      path.join(sharedSkills(), dir, 'SKILL.md'),
+      '---\nname: Ext\ndescription: from shared\n---\nx',
+      'utf8'
+    )
+  }
+
+  it('扫描包含共享目录：仅共享命中的 skill foundIn=[shared]、path 指向共享目录', async () => {
+    await seedSharedSkill()
+    await seed([])
+
+    const list = listUnmanagedSkills(ctx)
+
+    const ext = list.find((u) => u.dir === 'ext-skill')
+    expect(ext).toMatchObject({ dir: 'ext-skill', name: 'Ext', desc: 'from shared' })
+    expect(ext?.foundIn).toEqual(['shared'])
+    expect(ext?.path).toBe(path.join(sharedSkills(), 'ext-skill'))
+  })
+
+  it('harness 与共享目录同名：foundIn 合并（harness 在前）且 path 取 harness 路径', async () => {
+    await seedHarnessSkills()   // dsh + claude 各有 manual（现有助手）
+    await seedSharedSkill('manual')
+    await seed([entry('hello', 'Hello')])
+
+    const list = listUnmanagedSkills(ctx)
+
+    const manual = list.find((u) => u.dir === 'manual')
+    expect(manual?.foundIn).toEqual(['dsh', 'claude', 'shared'])
+    expect(manual?.path).toBe(path.join(skillsDirOf('dsh'), 'manual'))
+  })
+
+  it('importSkills：从共享目录导入并部署回共享目录（原实体目录被复制替换）', async () => {
+    await seedSharedSkill()
+    await seed([])
+
+    const list = await importSkills([{ dir: 'ext-skill', apps: { shared: true } }], ctx)
+
+    const sk = loadStore(dataPath).skills.find((s) => s.dir === 'ext-skill')
+    expect(sk).toMatchObject({ dir: 'ext-skill', repo: null, apps: { shared: true } })
+    expect(await fs.readFile(path.join(ssot, 'ext-skill', 'SKILL.md'), 'utf8')).toContain('name: Ext')
+    // syncMethod=auto：共享目录原为实体目录 -> 复制替换（纳管接管语义）
+    expect((await fs.lstat(path.join(sharedSkills(), 'ext-skill'))).isSymbolicLink()).toBe(false)
+    expect(await fs.readFile(path.join(sharedSkills(), 'ext-skill', 'SKILL.md'), 'utf8')).toContain(
+      'name: Ext'
+    )
+    expect(list.some((s) => s.dir === 'ext-skill')).toBe(true)
+  })
+
+  it('importSkills：部署目标含 shared 但 <home>/.agents 缺失时整批拒绝（不写 SSOT、不入库）', async () => {
+    await seed([])
+    // 源放在 dsh（harness 目录存在），目标含 shared
+    await fs.mkdir(path.join(skillsDirOf('dsh'), 'manual'), { recursive: true })
+    await fs.writeFile(
+      path.join(skillsDirOf('dsh'), 'manual', 'SKILL.md'),
+      '---\nname: Manual\n---\nx',
+      'utf8'
+    )
+
+    await expect(importSkills([{ dir: 'manual', apps: { shared: true } }], ctx)).rejects.toThrow(
+      /共享目录/
+    )
+
+    await expect(fs.access(path.join(ssot, 'manual'))).rejects.toThrow()
+    expect(loadStore(dataPath).skills).toHaveLength(0)
   })
 })
 

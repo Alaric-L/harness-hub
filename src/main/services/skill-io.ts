@@ -6,14 +6,14 @@ import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
 import { unzipSync } from 'fflate'
-import { assertAgentRoot } from './agent-root'
-import { AGENTS, resolveAgentPaths } from '../paths'
+import { assertAgentRoot, assertSkillTargetRoot } from './agent-root'
+import { AGENTS, agentsSharedSkillsDir, resolveAgentPaths, resolveSkillsTargetDir } from '../paths'
 import type { HomeEnv } from '../paths'
 import { loadSettings, loadStore, saveStore } from '../store'
 import { parseSkillMd } from '../skillmd'
 import { deploySkill, resolveSkillCtx, sanitizeSkillDirName } from './skills'
 import type { SkillCtx } from './skills'
-import type { AgentId, SkillBackup, SkillInstalled, UnmanagedSkill } from '../types'
+import type { AgentId, SkillBackup, SkillInstalled, SkillTargetId, UnmanagedSkill } from '../types'
 
 /** ENOENT/ENOTDIR 才视为不存在，其余错误原样上抛 */
 function isNotFound(err: unknown): boolean {
@@ -261,7 +261,7 @@ export function listUnmanagedSkills(ctx?: SkillCtx): UnmanagedSkill[] {
   const c = resolveSkillCtx(ctx)
   const settings = loadSettings(c.settingsFile)
   const known = new Set(loadStore(c.dataFile).skills.map((s) => s.dir))
-  const found = new Map<string, { agents: AgentId[]; path: string }>()
+  const found = new Map<string, { agents: SkillTargetId[]; path: string }>()
   for (const agent of AGENTS) {
     const r = resolveAgentPaths(agent.id, settings.dirOverrides, c.env)
     let entries: fs.Dirent[]
@@ -281,6 +281,23 @@ export function listUnmanagedSkills(ctx?: SkillCtx): UnmanagedSkill[] {
       rec.agents.push(agent.id)
       found.set(dir, rec)
     }
+  }
+  // 共享目录扫描（Agent Skills 标准全局目录；foundIn 记 'shared'，harness 未命中时 path 取共享路径）
+  let sharedEntries: fs.Dirent[]
+  try {
+    sharedEntries = fs.readdirSync(agentsSharedSkillsDir(c.env), { withFileTypes: true })
+  } catch (err) {
+    if (isNotFound(err)) sharedEntries = []
+    else throw err
+  }
+  for (const ent of sharedEntries) {
+    if (!ent.isDirectory()) continue
+    if (known.has(ent.name)) continue
+    const skillPath = path.join(agentsSharedSkillsDir(c.env), ent.name)
+    if (!parseSkillMd(skillPath)) continue
+    const rec = found.get(ent.name) ?? { agents: [], path: skillPath }
+    rec.agents.push('shared')
+    found.set(ent.name, rec)
   }
   const out: UnmanagedSkill[] = []
   for (const [dir, rec] of found) {
@@ -307,6 +324,15 @@ async function findSourceDir(
       throw err
     }
   }
+  // 共享目录兜底定位
+  const sharedSkillPath = path.join(agentsSharedSkillsDir(env), dir)
+  try {
+    if ((await fsp.stat(sharedSkillPath)).isDirectory() && parseSkillMd(sharedSkillPath)) {
+      return sharedSkillPath
+    }
+  } catch (err) {
+    if (!isNotFound(err)) throw err
+  }
   return null
 }
 
@@ -315,7 +341,7 @@ async function findSourceDir(
  * 源目录以当前磁盘扫描定位；找不到 / 已入库 / SSOT 已存在同名时抛错。
  */
 export async function importSkills(
-  items: { dir: string; apps: Partial<Record<AgentId, boolean>> }[],
+  items: { dir: string; apps: Partial<Record<SkillTargetId, boolean>> }[],
   ctx?: SkillCtx
 ): Promise<SkillInstalled[]> {
   const c = resolveSkillCtx(ctx)
@@ -329,13 +355,13 @@ export async function importSkills(
     }
   }
   // 预检：所有要部署的 harness 配置目录必须存在（任一缺失则整批拒绝，对齐「目录不存在不导入并提示」）
-  const deployTargets = new Set<AgentId>()
+  const deployTargets = new Set<SkillTargetId>()
   for (const item of items) {
-    for (const agentId of Object.keys(item.apps ?? {}) as AgentId[]) {
-      if (item.apps[agentId]) deployTargets.add(agentId)
+    for (const targetId of Object.keys(item.apps ?? {}) as SkillTargetId[]) {
+      if (item.apps[targetId]) deployTargets.add(targetId)
     }
   }
-  for (const agentId of deployTargets) assertAgentRoot(agentId, settings.dirOverrides, c.env)
+  for (const targetId of deployTargets) assertSkillTargetRoot(targetId, settings.dirOverrides, c.env)
   for (const item of items) {
     const source = await findSourceDir(item.dir, settings.dirOverrides, c.env)
     if (!source) throw new Error(`未找到 skill 源目录：${item.dir}`)
@@ -353,10 +379,14 @@ export async function importSkills(
   }
   await saveStore(c.dataFile, data)
   for (const item of items) {
-    for (const agentId of Object.keys(item.apps ?? {}) as AgentId[]) {
-      if (item.apps[agentId]) {
-        const r = resolveAgentPaths(agentId, settings.dirOverrides, c.env)
-        await deploySkill(c.ssotDir, item.dir, r.skillsDir, settings.syncMethod)
+    for (const targetId of Object.keys(item.apps ?? {}) as SkillTargetId[]) {
+      if (item.apps[targetId]) {
+        await deploySkill(
+          c.ssotDir,
+          item.dir,
+          resolveSkillsTargetDir(targetId, settings.dirOverrides, c.env),
+          settings.syncMethod
+        )
       }
     }
   }
