@@ -1,5 +1,7 @@
 // src/main/types.ts —— 全项目共用
 export type AgentId = 'dsh'|'claude'|'codex'|'gemini'|'grok'|'opencode'|'hermes';
+/** Skills 部署目标：7 个 harness，或 Agent Skills 共享目录（~/.agents/skills） */
+export type SkillTargetId = AgentId | 'shared';
 export type McpFormat = 'yaml-patch'|'json'|'toml'|'yaml';
 
 export interface McpSpec {
@@ -22,7 +24,7 @@ export interface SkillInstalled {
   dir: string; name: string; desc: string;
   repo: string | null;          // 'owner/repo' 或本地 null
   hasUpdate: boolean;
-  apps: Partial<Record<AgentId, boolean>>;
+  apps: Partial<Record<SkillTargetId, boolean>>;
 }
 export interface PromptItem {
   id: string; name: string; desc?: string;
@@ -35,7 +37,7 @@ export interface SkillBackup {
 }
 export interface UnmanagedSkill {
   dir: string; name: string; desc: string;
-  foundIn: AgentId[]; path: string;
+  foundIn: SkillTargetId[]; path: string;
 }
 export interface AppSettings {
   dirOverrides: Partial<Record<AgentId, string>>;

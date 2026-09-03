@@ -2,13 +2,16 @@ import { describe, expect, it } from 'vitest'
 import path from 'node:path'
 import {
   AGENTS,
+  agentsSharedRoot,
+  agentsSharedSkillsDir,
   dataRoot,
   ssotSkillsDir,
   skillBackupsDir,
   fileBackupDir,
   dataFile,
   settingsFile,
-  resolveAgentPaths
+  resolveAgentPaths,
+  resolveSkillsTargetDir
 } from '../src/main/paths'
 
 // 注入式 home：Windows 下优先 USERPROFILE
@@ -202,5 +205,27 @@ describe('resolveAgentPaths 目录覆盖', () => {
     expect(resolveAgentPaths('dsh', overrides, WIN_ENV).mcpPath).toBe(
       path.join('D:\\x', 'profiles', 'web', 'cordis.patch.yml')
     )
+  })
+})
+
+describe('Agent Skills 共享目录路径', () => {
+  it('agentsSharedRoot / agentsSharedSkillsDir 拼接 <home>/.agents 与 <home>/.agents/skills', () => {
+    expect(agentsSharedRoot(WIN_ENV)).toBe(path.join(HOME, '.agents'))
+    expect(agentsSharedSkillsDir(WIN_ENV)).toBe(path.join(HOME, '.agents', 'skills'))
+  })
+
+  it('resolveSkillsTargetDir：shared -> <home>/.agents/skills，不受 dirOverrides 影响', () => {
+    expect(resolveSkillsTargetDir('shared', { dsh: 'D:\\x' }, WIN_ENV)).toBe(
+      path.join(HOME, '.agents', 'skills')
+    )
+  })
+
+  it('resolveSkillsTargetDir：harness id -> resolveAgentPaths().skillsDir（含覆盖）', () => {
+    expect(resolveSkillsTargetDir('dsh', { dsh: 'D:\\x' }, WIN_ENV)).toBe(path.join('D:\\x', 'skills'))
+    expect(resolveSkillsTargetDir('claude', {}, WIN_ENV)).toBe(path.join(HOME, '.claude', 'skills'))
+  })
+
+  it('resolveSkillsTargetDir：未知 id 抛错（与 resolveAgentPaths 同文案）', () => {
+    expect(() => resolveSkillsTargetDir('bogus' as never, {}, WIN_ENV)).toThrow(/未知 agent id/)
   })
 })

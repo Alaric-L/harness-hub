@@ -1,6 +1,6 @@
 // src/main/paths.ts —— 全项目路径解析的唯一来源（数据根目录 + 7 harness 落点 + 目录覆盖）
 import path from 'node:path'
-import type { AgentId, AgentInfo } from './types'
+import type { AgentId, AgentInfo, SkillTargetId } from './types'
 
 /** 可注入的 home 环境（单测用）；运行期取 process.env */
 export interface HomeEnv {
@@ -125,4 +125,27 @@ export function resolveAgentPaths(
   const promptFile = expandHome(agent.promptFile, home)
   const mcpPath = expandHome(agent.mcpPath, home)
   return { mcpPath, skillsDir, promptFile, root }
+}
+
+/** Agent Skills 共享目录根 <home>/.agents（标准位置固定，不提供目录覆盖） */
+export function agentsSharedRoot(env: HomeEnv = process.env): string {
+  return path.join(resolveHome(env), '.agents')
+}
+
+/** Agent Skills 共享 skills 目录 <home>/.agents/skills */
+export function agentsSharedSkillsDir(env: HomeEnv = process.env): string {
+  return path.join(agentsSharedRoot(env), 'skills')
+}
+
+/**
+ * Skills 部署目标目录解析：'shared' -> ~/.agents/skills（不支持目录覆盖）；
+ * harness id -> resolveAgentPaths().skillsDir（dirOverrides 生效）。
+ */
+export function resolveSkillsTargetDir(
+  targetId: SkillTargetId,
+  overrides: Partial<Record<AgentId, string>>,
+  env: HomeEnv = process.env
+): string {
+  if (targetId === 'shared') return agentsSharedSkillsDir(env)
+  return resolveAgentPaths(targetId, overrides, env).skillsDir
 }
