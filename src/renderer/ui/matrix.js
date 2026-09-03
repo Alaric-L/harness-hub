@@ -1,5 +1,5 @@
 /* ================= 计数徽章行（AppCountBar） / 矩阵表格 / 过滤 ================= */
-import { AGENTS, AGENT_BY } from '../data.js';
+import { AGENTS, SKILL_TARGETS, SKILL_TARGET_BY } from '../data.js';
 import { icon } from '../icons.js';
 import { $, showToast, askConfirm } from './common.js';
 import { state } from '../state.js';
@@ -10,7 +10,8 @@ import { renderDashboard } from './dashboard.js';
 export function renderCountBar(containerId, items, kind){
   const el = $(containerId);
   const unit = kind==='mcp' ? 'MCP' : 'Skill';
-  const badges = AGENTS.map(a=>{
+  const targets = kind==='skill' ? SKILL_TARGETS : AGENTS;
+  const badges = targets.map(a=>{
     const n = items.filter(i=>i.apps[a.id]).length;
     const allOn = items.length>0 && n>=items.length;
     return `<button class="count-badge ${allOn?'all-on':''}" data-bulk="${a.id}" data-kind="${kind}"
@@ -25,7 +26,7 @@ export function renderCountBar(containerId, items, kind){
   el.querySelectorAll('[data-bulk]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       const agentId = btn.dataset.bulk;
-      const agent = AGENT_BY(agentId);
+      const agent = SKILL_TARGET_BY(agentId);
       const allOn = items.length>0 && items.every(i=>i.apps[agentId]);
       const target = allOn ? 0 : 1;
       if(kind==='mcp'){
@@ -67,16 +68,17 @@ export function renderMatrix(kind){
   const tableId = kind==='mcp' ? 'mcp-table' : 'skills-table';
   const table = $(tableId);
   const items = kind==='mcp' ? state.mcpItems : state.skillsItems;
+  const targets = kind==='skill' ? SKILL_TARGETS : AGENTS;
 
   const thead = `<thead><tr>
     <th class="col-name">名称 / 描述</th>
-    ${AGENTS.map(a=>`<th class="col-agent"><span class="agent-col-ic" title="${a.name}">${icon(a.id, 24, a.name)}</span></th>`).join('')}
+    ${targets.map(a=>`<th class="col-agent"><span class="agent-col-ic" title="${a.name}">${icon(a.id, 24, a.name)}</span></th>`).join('')}
     <th style="width:150px;"></th>
   </tr></thead>`;
 
   const rows = items.map(item=>{
     const rowId = kind==='mcp' ? item.id : item.dir;
-    const cells = AGENTS.map(a=>`
+    const cells = targets.map(a=>`
       <td class="col-agent">
         <label class="switch" title="${a.name}">
           <input type="checkbox" ${item.apps[a.id]?'checked':''} data-toggle="${rowId}" data-agent="${a.id}" data-kind="${kind}">
@@ -134,7 +136,7 @@ export function renderMatrix(kind){
       const rowId = e.target.dataset.toggle;
       const agent = e.target.dataset.agent;
       const k = e.target.dataset.kind;
-      const agentObj = AGENT_BY(agent);
+      const agentObj = SKILL_TARGET_BY(agent);
       if(k==='mcp'){
         const on = e.target.checked;
         try {
