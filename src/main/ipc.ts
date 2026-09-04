@@ -23,12 +23,12 @@ import {
   toggleMcp
 } from './services/mcp'
 import {
+  applyPrompt,
   copyPrompt,
   deletePrompt,
-  disablePrompt,
-  enablePrompt,
-  importPromptsFromHarnesses,
+  getPromptSnapshot,
   listPrompts,
+  saveLivePrompt,
   savePrompt
 } from './services/prompts'
 import {
@@ -347,6 +347,14 @@ ipcMain.handle('hub:listPrompts', async (_event, agentId: AgentId) => {
   }
 })
 
+ipcMain.handle('hub:getPromptSnapshot', async (_event, agentId: AgentId) => {
+  try {
+    return await getPromptSnapshot(agentId)
+  } catch (err) {
+    throw new Error(errMessage(err))
+  }
+})
+
 ipcMain.handle('hub:savePrompt', async (_event, agentId: AgentId, item: PromptItem) => {
   try {
     return await savePrompt(agentId, item)
@@ -363,17 +371,17 @@ ipcMain.handle('hub:deletePrompt', async (_event, agentId: AgentId, id: string) 
   }
 })
 
-ipcMain.handle('hub:enablePrompt', async (_event, agentId: AgentId, id: string) => {
+ipcMain.handle('hub:saveLivePrompt', async (_event, agentId: AgentId, content: string) => {
   try {
-    return await enablePrompt(agentId, id)
+    return await saveLivePrompt(agentId, content)
   } catch (err) {
     throw new Error(errMessage(err))
   }
 })
 
-ipcMain.handle('hub:disablePrompt', async (_event, agentId: AgentId) => {
+ipcMain.handle('hub:applyPrompt', async (_event, agentId: AgentId, id: string) => {
   try {
-    return await disablePrompt(agentId)
+    return await applyPrompt(agentId, id)
   } catch (err) {
     throw new Error(errMessage(err))
   }
@@ -382,14 +390,6 @@ ipcMain.handle('hub:disablePrompt', async (_event, agentId: AgentId) => {
 ipcMain.handle('hub:copyPrompt', async (_event, agentId: AgentId, id: string, targets: AgentId[]) => {
   try {
     return await copyPrompt(agentId, id, targets)
-  } catch (err) {
-    throw new Error(errMessage(err))
-  }
-})
-
-ipcMain.handle('hub:importPromptsFromHarnesses', async () => {
-  try {
-    return await importPromptsFromHarnesses()
   } catch (err) {
     throw new Error(errMessage(err))
   }

@@ -40,12 +40,12 @@ contextBridge.exposeInMainWorld('hub', {
   installSkillFromSh: (...args: unknown[]) => ipcRenderer.invoke('hub:installSkillFromSh', ...args),
   // 提示词
   listPrompts: (...args: unknown[]) => ipcRenderer.invoke('hub:listPrompts', ...args),
+  getPromptSnapshot: (...args: unknown[]) => ipcRenderer.invoke('hub:getPromptSnapshot', ...args),
   savePrompt: (...args: unknown[]) => ipcRenderer.invoke('hub:savePrompt', ...args),
   deletePrompt: (...args: unknown[]) => ipcRenderer.invoke('hub:deletePrompt', ...args),
-  enablePrompt: (...args: unknown[]) => ipcRenderer.invoke('hub:enablePrompt', ...args),
-  disablePrompt: (...args: unknown[]) => ipcRenderer.invoke('hub:disablePrompt', ...args),
+  saveLivePrompt: (...args: unknown[]) => ipcRenderer.invoke('hub:saveLivePrompt', ...args),
+  applyPrompt: (...args: unknown[]) => ipcRenderer.invoke('hub:applyPrompt', ...args),
   copyPrompt: (...args: unknown[]) => ipcRenderer.invoke('hub:copyPrompt', ...args),
-  importPromptsFromHarnesses: (...args: unknown[]) => ipcRenderer.invoke('hub:importPromptsFromHarnesses', ...args),
   // Harness 管理与设置
   // G3 契约扩展：getAgentsDetailed（模板 agents + 各 harness 解析后真实路径）
   getAgentsDetailed: (...args: unknown[]) => ipcRenderer.invoke('hub:getAgentsDetailed', ...args),

@@ -28,7 +28,21 @@ export interface SkillInstalled {
 }
 export interface PromptItem {
   id: string; name: string; desc?: string;
-  content: string; enabled: boolean; updatedAt: number;   // epoch ms
+  content: string; createdAt: number; updatedAt: number;   // epoch ms
+}
+
+export interface PromptLive {
+  agentId: AgentId;
+  path: string;
+  exists: boolean;
+  content: string;
+  mtime: number | null;       // epoch ms
+  matchedIds: string[];        // 与 saved content 完全相等的记录
+}
+
+export interface PromptSnapshot {
+  prompts: PromptItem[];
+  live: PromptLive;
 }
 export interface RepoConfig { owner: string; name: string; branch: string; }
 export interface SkillBackup {
