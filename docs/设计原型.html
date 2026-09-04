@@ -331,11 +331,29 @@
   .stat-card .num.accent{color:var(--accent);}
   .dash-section{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px; margin-bottom:16px; box-shadow:var(--shadow-sm);}
   .dash-section h4{font-family:var(--font-display); font-size:14.5px; margin-bottom:14px;}
+  .dash-head{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px;}
+  .dash-head h4{margin-bottom:0;}
   .agent-grid-mini{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px;}
   @media (max-width:1500px){ .agent-grid-mini{grid-template-columns:repeat(3,minmax(0,1fr));} }
   .mini-agent-card{border:1px solid var(--border-soft); border-radius:var(--radius); padding:18px 20px; display:flex; align-items:center; gap:16px; background:var(--surface-2);}
   .mini-agent-card .m-name{font-size:14px; font-weight:600;}
   .mini-agent-card .m-meta{font-size:12px; color:var(--text-faint); margin-top:4px; font-family:var(--font-mono);}
+
+  /* Dashboard 概览：版本卡片（对齐 cc-switch 本地环境检查卡片） */
+  .agent-ver-card{border:1px solid var(--border-soft); border-radius:var(--radius); padding:16px 18px; background:var(--surface-2); display:flex; flex-direction:column; gap:8px;}
+  .avc-head{display:flex; align-items:center; gap:10px;}
+  .avc-name{font-size:13.5px; font-weight:600; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .avc-badge{font-size:10px; font-weight:600; padding:2px 8px; border-radius:10px; flex-shrink:0;}
+  .avc-badge.ok{color:var(--on); background:#E6F7EE;}
+  .avc-badge.upd{color:#966A0B; background:#FEF6E7; border:1px solid #F3DFAE;}
+  .avc-badge.warn{color:var(--danger); background:#FDECEC;}
+  .avc-badge.loading{color:var(--text-faint); background:var(--surface-3);}
+  .avc-row{display:flex; justify-content:space-between; align-items:center; gap:10px; font-size:12px;}
+  .avc-row span{color:var(--text-faint);}
+  .avc-row .mono{font-family:var(--font-mono); font-size:11.5px; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .avc-meta{font-size:11px; color:var(--text-faint); font-family:var(--font-mono);}
+  .avc-actions{display:flex; justify-content:flex-end; padding-top:6px; border-top:1px solid var(--border-soft);}
+  .avc-ready{font-size:11.5px; color:var(--text-faint);}
 
   /* ---------- Toast ---------- */
   .toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--text); color:#fff; padding:11px 18px; border-radius:var(--radius-sm); font-size:13px; opacity:0; pointer-events:none; transition:.2s; z-index:200; display:flex; align-items:center; gap:8px; box-shadow:var(--shadow-md); max-width:70vw;}
@@ -387,13 +405,16 @@
       <!-- ===== Dashboard ===== -->
       <section class="view active" id="view-dashboard">
         <div class="stat-grid">
-          <div class="stat-card"><div class="num accent">7</div><div class="lbl">已接入 Harness</div></div>
+          <div class="stat-card"><div class="num accent" id="stat-agents">0</div><div class="lbl">已安装 Harness</div></div>
           <div class="stat-card"><div class="num" id="stat-mcp">0</div><div class="lbl">MCP 服务总数</div></div>
           <div class="stat-card"><div class="num" id="stat-skill">0</div><div class="lbl">已安装 Skills</div></div>
           <div class="stat-card"><div class="num" id="stat-prompt">0</div><div class="lbl">已保存提示词</div></div>
         </div>
         <div class="dash-section">
-          <h4>Harness 概览</h4>
+          <div class="dash-head">
+            <h4>Harness 概览</h4>
+            <button class="btn btn-ghost btn-sm" id="btn-dash-refresh">⟳ 刷新版本</button>
+          </div>
           <div class="agent-grid-mini" id="dash-agent-grid"></div>
         </div>
       </section>
@@ -869,6 +890,18 @@ const AGENTS = [
 ];
 function AGENT_BY(id){ return AGENTS.find(a=>a.id===id); }
 
+/* ---- Dashboard Harness 概览：版本探测结果 mock（对齐产品 getAgentVersions：
+ * 本地 --version 探测 + npm registry latest；未安装/可更新/最新 状态示意） ---- */
+const AGENT_VERSIONS = [
+  {agentId:'dsh',      version:'2.3.1',   latestVersion:'2.3.1',   error:null,                       installed:true},
+  {agentId:'opencode', version:'0.18.4',  latestVersion:'0.19.1',  error:null,                       installed:true},
+  {agentId:'codex',    version:'0.51.0',  latestVersion:'0.51.0',  error:null,                       installed:true},
+  {agentId:'claude',   version:null,      latestVersion:'2.0.28',  error:'claude 未安装或不在 PATH 中', installed:false},
+  {agentId:'grok',     version:'2.2.10',  latestVersion:'2.2.13',  error:null,                       installed:true},
+  {agentId:'gemini',   version:'0.9.3',   latestVersion:'0.9.3',   error:null,                       installed:true},
+  {agentId:'hermes',   version:null,      latestVersion:'0.6.0',   error:'hermes 未安装或不在 PATH 中', installed:false},
+];
+
 /* ---- Skills 部署目标：7 harness + Agent Skills 共享目录（共享置顶，仅 Skills 视图使用） ---- */
 const SHARED_TARGET = { id:'shared', name:'共享目录(~/.agents/skills)', short:'共享目录', skillsDir:'~/.agents/skills' };
 const SKILL_TARGETS = [SHARED_TARGET, ...AGENTS];
@@ -1099,23 +1132,67 @@ function renderSidebarAgents(){
     </button>`).join('');
 }
 
+/* 简化版本比较（原型 mock：版本字符串不等即视为可更新；产品侧为 semver 严格比较） */
+function isUpdateAvailable(current, latest){
+  if(!current || !latest) return false;
+  return current !== latest;
+}
+
+/** 卡片状态徽标：未安装 / 可更新 / 最新 */
+function statusBadge(v){
+  if(!v) return `<span class="avc-badge loading">…</span>`;
+  if(!v.installed) return `<span class="avc-badge warn">未安装</span>`;
+  return isUpdateAvailable(v.version, v.latestVersion)
+    ? `<span class="avc-badge upd">可更新</span>`
+    : `<span class="avc-badge ok">✓ 最新</span>`;
+}
+
+/** 动作区：未安装→安装；可更新→更新；最新→就绪文案 */
+function actionButton(agentId, v){
+  if(!v) return `<span class="avc-ready">探测中…</span>`;
+  if(!v.installed) return `<button class="btn btn-ghost btn-sm" data-agent-action="${agentId}" data-action="install">安装</button>`;
+  if(isUpdateAvailable(v.version, v.latestVersion)) return `<button class="btn btn-primary btn-sm" data-agent-action="${agentId}" data-action="update">更新</button>`;
+  return `<span class="avc-ready">✓ 已是最新</span>`;
+}
+
 function renderDashboard(){
+  // 第一个统计卡「已安装 Harness」= 探测到版本的 agent 数
+  $('stat-agents').textContent = AGENT_VERSIONS.filter(v=>v.installed).length;
   $('stat-mcp').textContent = MCP_ITEMS.length;
   $('stat-skill').textContent = SKILLS_INSTALLED.length;
   $('stat-prompt').textContent = AGENTS.reduce((n,a)=> n + PROMPTS[a.id].length, 0);
 
   $('dash-agent-grid').innerHTML = AGENTS.map(a=>{
+    const v = AGENT_VERSIONS.find(x=>x.agentId===a.id) || null;
     const mcp = MCP_ITEMS.filter(i=>i.apps[a.id]).length;
     const skill = SKILLS_INSTALLED.filter(i=>i.apps[a.id]).length;
     const prompt = PROMPTS[a.id].length;
-    return `<div class="mini-agent-card">
-      ${icon(a.id, 28, a.name)}
-      <div>
-        <div class="m-name">${a.name}</div>
-        <div class="m-meta">MCP ${mcp} · Skills ${skill} · 提示词 ${prompt}</div>
+    const current = (v && v.version) ? v.version : (v && v.error) ? '未安装' : '—';
+    const latest = (v && v.latestVersion) ? v.latestVersion : '未知';
+    return `<div class="agent-ver-card">
+      <div class="avc-head">
+        ${icon(a.id, 24, a.name)}
+        <div class="avc-name">${a.name}</div>
+        ${statusBadge(v)}
       </div>
+      <div class="avc-row"><span>当前版本</span><span class="mono" title="${v && v.error ? v.error : ''}">${current}</span></div>
+      <div class="avc-row"><span>最新版本</span><span class="mono">${latest}</span></div>
+      <div class="avc-meta">MCP ${mcp} · Skills ${skill} · 提示词 ${prompt}</div>
+      <div class="avc-actions">${actionButton(a.id, v)}</div>
     </div>`;
   }).join('');
+
+  // 安装 / 更新（原型示意：点击后 toast 提示）
+  $('dash-agent-grid').querySelectorAll('[data-agent-action]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const agentId = btn.dataset.agentAction;
+      const action = btn.dataset.action;
+      const agent = AGENT_BY(agentId);
+      showToast(action==='install'
+        ? `（原型）已安装 ${agent.name} 并探测到最新版本`
+        : `（原型）已更新 ${agent.name} 到最新版本`);
+    });
+  });
 }
 
 /* ================= 计数徽章行（AppCountBar） ================= */
@@ -2295,6 +2372,11 @@ $('search-input').addEventListener('input', e=>{
 /* ================= 初始化 ================= */
 renderSidebarAgents();
 renderDashboard();
+// 概览区「刷新版本」按钮：原型示意（产品侧为强制全量重探测 getAgentVersions）
+$('btn-dash-refresh').addEventListener('click', ()=>{
+  renderDashboard();
+  showToast('（原型）已刷新 Harness 版本信息');
+});
 renderCountBar('mcp-countbar', MCP_ITEMS, 'mcp');
 renderCountBar('skills-countbar', SKILLS_INSTALLED, 'skill');
 renderMatrix('mcp');
