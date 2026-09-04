@@ -4,6 +4,7 @@ import { icon } from '../icons.js';
 import { $, showToast } from './common.js';
 import { state } from '../state.js';
 import { isUpdateAvailable } from '../version.js';
+import { savedPromptCount } from './prompt-view.js';
 
 /** 当前 agent 的版本探测结果（未加载返回 null） */
 function versionOf(agentId){
@@ -42,14 +43,14 @@ export function renderDashboard(){
     : (state.agents ? state.agents.length : 0);
   $('stat-mcp').textContent = state.mcpItems.length;
   $('stat-skill').textContent = state.skillsItems.length;
-  // 激活提示词 = 各库 enabled 计数（state.promptsByAgent 汇总，与提示词页同源）
-  $('stat-prompt').textContent = AGENTS.reduce((n,a)=> n + (state.promptsByAgent[a.id]||[]).filter(p=>p.enabled).length, 0);
+  // 已保存提示词 = 各 harness saved 库总数（live 不落库、不参与计数）
+  $('stat-prompt').textContent = savedPromptCount(state.promptsByAgent);
 
   $('dash-agent-grid').innerHTML = AGENTS.map(a=>{
     const v = versionOf(a.id);
     const mcp = state.mcpItems.filter(i=>i.apps[a.id]).length;
     const skill = state.skillsItems.filter(i=>i.apps[a.id]).length;
-    const prompt = (state.promptsByAgent[a.id]||[]).filter(p=>p.enabled).length;
+    const prompt = (state.promptsByAgent[a.id]||[]).length;
     const current = !state.agentVersions ? '…'
       : (v && v.version) ? v.version
       : (v && v.error) ? '未安装'

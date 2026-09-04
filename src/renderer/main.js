@@ -16,7 +16,7 @@ const viewMeta = {
   dashboard:{title:'Dashboard', sub:'7 个 harness 的配置总览', search:false},
   mcp:{title:'MCP 服务', sub:'统一管理 MCP 配置，按 harness 一键开关并写入各自配置文件', search:false},
   skills:{title:'Skills', sub:'中央库安装与分发，支持仓库发现、更新与备份', search:true},
-  prompts:{title:'提示词', sub:'每个 harness 一套提示词库，单条激活写入指令文件', search:false},
+  prompts:{title:'提示词', sub:'当前指令文件与已保存提示词库分层管理', search:false},
   agents:{title:'Harness 管理', sub:'各 harness 的配置落点与目录覆盖', search:false},
   settings:{title:'设置', sub:'数据备份、导入导出与全局选项', search:false},
 };
@@ -72,13 +72,13 @@ async function init(){
     state.skillsItems = await window.hub.listSkills();
   } catch (err) { showToast('操作失败：' + err.message); }
   try {
-    // G3：预加载全部提示词库（Dashboard 激活计数与 tab 切换同源真实数据）
+    // 预加载全部 saved 提示词库（Dashboard saved 计数与 tab 切换使用；live 按当前 harness 单独读取）
     await Promise.all(AGENTS.map(a=>
       window.hub.listPrompts(a.id).then(list=>{ state.promptsByAgent[a.id] = list; })
     ));
   } catch (err) { showToast('操作失败：' + err.message); }
 
-  // 启动时自动从各 harness 导入一次（MCP / 提示词），有变化时汇总提示
+  // 启动时自动从各 harness 导入一次 MCP 配置，有变化时提示
   await autoRefreshFromHarnesses();
 
   renderSidebarAgents();
@@ -92,31 +92,24 @@ async function init(){
   renderDiscovery();
 }
 
-/* ================= 启动自动刷新：从各 harness 配置目录导入一次 =================
- * MCP：合并 harness 配置文件条目进库（只动本地库，不写 harness 文件）；
- * 提示词：指令文件 live 内容不在库中的新增「原始提示词」条目。
- * 各步独立成败（失败 console 记录 + 汇总 toast 提示），幂等：已导入的不会重复。 */
+/* ================= 启动自动刷新：仅导入 MCP 配置 =================
+ * v2 提示词不再自动导入：live 内容仅在提示词页运行时读取，
+ * 进入 saved 库必须由用户通过「另存为」或「新增」显式创建。 */
 async function autoRefreshFromHarnesses(){
-  const summary = { mcp: 0, prompt: 0 };
+  const summary = { mcp: 0 };
   const errors = [];
   try {
     const { added } = await window.hub.importMcpFromHarnesses();
     state.mcpItems = await window.hub.listMcp();
     summary.mcp = added.length;
-  } catch (err) { errors.push('MCP：' + err.message); }
-  try {
-    const res = await window.hub.importPromptsFromHarnesses();
-    await Promise.all(AGENTS.map(a=>
-      window.hub.listPrompts(a.id).then(list=>{ state.promptsByAgent[a.id] = list; })
-    ));
-    summary.prompt = res.added;
-  } catch (err) { errors.push('提示词：' + err.message); }
+  } catch (err) {
+    errors.push('MCP：' + err.message);
+  }
 
-  if(summary.mcp + summary.prompt > 0){
-    showToast(`启动时已自动导入：MCP +${summary.mcp} · 提示词 +${summary.prompt}`);
+  if(summary.mcp > 0){
+    showToast(`启动时已自动导入：MCP +${summary.mcp}`);
   }
   if(errors.length > 0){
     showToast('启动自动刷新部分失败：' + errors[0]);
   }
-}
-init();
+}\r\ninit();
