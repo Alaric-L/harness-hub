@@ -1,4 +1,4 @@
-// tests/prompts.test.ts —— v2：saved 命名库 CRUD 与旧数据兼容
+// tests/prompts.test.ts —— v2：saved 命名库 CRUD
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import fs from 'node:fs/promises'
 import os from 'node:os'
@@ -15,7 +15,6 @@ import {
 } from '../src/main/services/prompts'
 
 const AGENT_IDS: AgentId[] = ['dsh', 'claude', 'codex', 'gemini', 'grok', 'opencode', 'hermes']
-type LegacyPrompt = PromptItem & { enabled?: boolean }
 
 function promptFileName(agentId: AgentId): string {
   const tpl = AGENTS.find((a) => a.id === agentId)!.promptFile
@@ -88,22 +87,6 @@ beforeEach(async () => {
 
 afterEach(async () => {
   await fs.rm(tmp, { recursive: true, force: true })
-})
-
-describe('listPrompts（旧数据兼容）', () => {
-  it('读取旧数据时忽略 enabled，并回退 createdAt', async () => {
-    const legacy: LegacyPrompt = {
-      id: 'p1', name: 'A', content: 'A-content',
-      enabled: true, createdAt: 0, updatedAt: 123
-    }
-    await seed('dsh', [legacy])
-
-    const list = listPrompts('dsh', ctx)
-
-    expect(list).toEqual([
-      { id: 'p1', name: 'A', content: 'A-content', createdAt: 123, updatedAt: 123 }
-    ])
-  })
 })
 
 describe('savePrompt（saved 库 CRUD）', () => {

@@ -47,18 +47,6 @@ async function writePromptFile(
   await atomicWrite(filePath, content)
 }
 
-function normalizePrompt(raw: PromptItem): PromptItem {
-  const p = raw as PromptItem & { enabled?: unknown }
-  return {
-    id: p.id,
-    name: p.name,
-    ...(p.desc !== undefined ? { desc: p.desc } : {}),
-    content: p.content,
-    createdAt: p.createdAt || p.updatedAt || 0,
-    updatedAt: p.updatedAt ?? 0
-  }
-}
-
 async function readLiveState(filePath: string): Promise<{
   exists: boolean
   content: string
@@ -78,7 +66,7 @@ async function readLiveState(filePath: string): Promise<{
 
 export function listPrompts(agentId: AgentId, ctx?: PromptCtx): PromptItem[] {
   const c = ctxOf(ctx)
-  return (loadStore(c.dataFile).prompts[agentId] ?? []).map(normalizePrompt)
+  return loadStore(c.dataFile).prompts[agentId] ?? []
 }
 
 export async function savePrompt(
@@ -88,7 +76,7 @@ export async function savePrompt(
 ): Promise<PromptItem[]> {
   const c = ctxOf(ctx)
   const data = loadStore(c.dataFile)
-  const list = (data.prompts[agentId] ?? []).map(normalizePrompt)
+  const list = data.prompts[agentId] ?? []
   const idx = list.findIndex((p) => p.id === item.id)
   const now = Date.now()
 
@@ -123,7 +111,7 @@ export async function deletePrompt(
 ): Promise<PromptItem[]> {
   const c = ctxOf(ctx)
   const data = loadStore(c.dataFile)
-  const list = (data.prompts[agentId] ?? []).map(normalizePrompt)
+  const list = data.prompts[agentId] ?? []
   const idx = list.findIndex((p) => p.id === id)
   if (idx < 0) throw new Error(`提示词不存在：${id}`)
 
@@ -148,14 +136,14 @@ export async function copyPrompt(
 ): Promise<{ copiedTo: AgentId[] }> {
   const c = ctxOf(ctx)
   const data = loadStore(c.dataFile)
-  const source = (data.prompts[agentId] ?? []).map(normalizePrompt).find((p) => p.id === id)
+  const source = (data.prompts[agentId] ?? []).find((p) => p.id === id)
   if (!source) throw new Error(`提示词不存在：${id}`)
 
   const copiedTo: AgentId[] = []
   for (const target of targets) {
     if (target === agentId || copiedTo.includes(target)) continue
     if (!AGENTS.some((a) => a.id === target)) continue
-    const list = (data.prompts[target] ?? []).map(normalizePrompt)
+    const list = data.prompts[target] ?? []
     const now = Date.now()
     list.push({
       id: newPromptId(),
@@ -180,7 +168,7 @@ export async function getPromptSnapshot(
   const c = ctxOf(ctx)
   const data = loadStore(c.dataFile)
   const settings = loadSettings(c.settingsFile)
-  const prompts = (data.prompts[agentId] ?? []).map(normalizePrompt)
+  const prompts = data.prompts[agentId] ?? []
   const r = resolveAgentPaths(agentId, settings.dirOverrides, c.env)
   const live = await readLiveState(r.promptFile)
   const matchedIds = prompts.filter((p) => p.content === live.content).map((p) => p.id)
@@ -218,7 +206,7 @@ export async function applyPrompt(
   const c = ctxOf(ctx)
   const data = loadStore(c.dataFile)
   const settings = loadSettings(c.settingsFile)
-  const list = (data.prompts[agentId] ?? []).map(normalizePrompt)
+  const list = data.prompts[agentId] ?? []
   const target = list.find((p) => p.id === id)
   if (!target) throw new Error(`提示词不存在：${id}`)
 

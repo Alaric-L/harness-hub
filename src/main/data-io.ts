@@ -6,30 +6,12 @@ import { saveSettings, saveStore } from './store'
 import type { StoreData } from './store'
 import type { AppSettings } from './types'
 
-/** 导出/导入的单 JSON 备份结构；导入可接受历史 v1，导出固定 v2 */
+/** 导出/导入的单 JSON 备份结构 */
 export interface ExportPayload {
-  version: 1 | 2
+  version: 1
   exportedAt: string
   data: StoreData
   settings: AppSettings
-}
-
-function normalizePromptData(data: StoreData): StoreData {
-  const prompts = data.prompts ?? ({} as StoreData['prompts'])
-  const normalized = Object.fromEntries(
-    Object.entries(prompts).map(([agentId, items]) => [
-      agentId,
-      (Array.isArray(items) ? items : []).map((item) => {
-        const legacy = item as typeof item & { enabled?: unknown }
-        const { enabled: _ignored, ...rest } = legacy
-        return {
-          ...rest,
-          createdAt: rest.createdAt ?? rest.updatedAt ?? 0
-        }
-      })
-    ])
-  ) as StoreData['prompts']
-  return { ...data, prompts: normalized }
 }
 
 export function buildExportPayload(
@@ -37,11 +19,11 @@ export function buildExportPayload(
   settings: AppSettings,
   now: Date = new Date()
 ): ExportPayload {
-  return { version: 2, exportedAt: now.toISOString(), data, settings }
+  return { version: 1, exportedAt: now.toISOString(), data, settings }
 }
 
 /**
- * 解析并校验备份文件文本：version 为 1 或 2 且 data/settings 均为对象；不合法抛可读错误。
+ * 解析并校验备份文件文本：version 为 1 且 data/settings 均为对象；不合法抛可读错误。
  * 纯校验，不触碰任何磁盘数据（校验通过后由调用方决定快照与覆盖）。
  */
 export function validateBackup(raw: string): ExportPayload {
@@ -55,8 +37,8 @@ export function validateBackup(raw: string): ExportPayload {
   if (!o || typeof o !== 'object' || Array.isArray(o)) {
     throw new Error('备份文件格式错误：应为 JSON 对象')
   }
-  if (o.version !== 1 && o.version !== 2) {
-    throw new Error(`备份文件版本不支持：${String(o.version)}（当前支持 1、2）`)
+  if (o.version !== 1) {
+    throw new Error(`备份文件版本不支持：${String(o.version)}（当前支持 1）`)
   }
   if (!o.data || typeof o.data !== 'object' || Array.isArray(o.data)) {
     throw new Error('备份文件缺少 data 字段')
@@ -67,7 +49,7 @@ export function validateBackup(raw: string): ExportPayload {
   return {
     version: o.version,
     exportedAt: typeof o.exportedAt === 'string' ? o.exportedAt : new Date().toISOString(),
-    data: normalizePromptData(o.data as StoreData),
+    data: o.data as StoreData,
     settings: o.settings as AppSettings
   }
 }
