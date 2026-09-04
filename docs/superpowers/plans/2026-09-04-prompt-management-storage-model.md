@@ -29,7 +29,7 @@
 | `ExportPayload.version: 1` | 存在 | `src/main/data-io.ts:9-25` | 当前导出 JSON 固定 version 1 |
 | `validateBackup` | 存在 | `src/main/data-io.ts:28-58` | 当前仅接受 version 1，导入旧备份时不清洗提示词字段 |
 | 提示词测试 | 存在 | `tests/prompts.test.ts:109-501` / `tests/import-prompts.test.ts:85-143` | 覆盖当前激活、停用、删除保护、导入与复制旧行为，需要随模型重写 |
-| 数据导入导出测试 | 存在 | `tests/data-io.test.ts:46-96` | 当前断言导出 version 1 且 version 2 报错，需要反转并补兼容旧版 |
+| 数据导入导出测试 | 存在 | `tests/data-io.test.ts:46-96` | 当前断言导出 version 1 且 version 2 报错（本计划保持该行为） |
 | 纯渲染层测试先例 | 存在 | `tests/renderer/import-notice.test.ts` / `tests/renderer/data.test.ts` | 证明 Vitest 可直接测试无 DOM 依赖的 renderer 纯函数模块 |
 | 当前基线 | 已验证 | 本会话命令输出 | `npx vitest run --pool=threads`：19 个文件、255 个测试全部通过；`npx tsc --noEmit -p tsconfig.node.json`：exit 0 |
 
@@ -50,8 +50,8 @@
 - 范围仅提示词管理；MCP、Skills、Harness 管理与设置页不得引入行为变化。Dashboard 因旧 `enabled` 计数失去数据源，仅将统计口径改为 saved 总数并更新文案。
 - spec 示例中的 `description` 映射到现有持久化字段 `desc`；本计划不重命名数据契约。
 - spec 中的 `isActive` 对应本仓库当前实际字段 `enabled`；实施后 TypeScript 与新写入数据均不再包含 `enabled`/`isActive`。
-- `StoreData.version` 保持 `1`；仅备份导出 JSON 的 `ExportPayload.version` 从 `1` 升为 `2`，导入继续接受 `1` 与 `2`。
-- live 不落库；saved 记录新增时写入 `createdAt` 与 `updatedAt`，旧数据读取时以 `createdAt ?? updatedAt ?? 0` 兜底，不做一次性文件清洗。
+- `StoreData.version` 与备份导出 JSON 的 `ExportPayload.version` 均保持 `1`；项目未发版、无历史数据，不做版本迁移与旧数据兼容。
+- live 不落库；saved 记录新增时写入 `createdAt` 与 `updatedAt`（无历史数据，无需读取兜底）。
 - “应用”和“编辑当前内容保存”必须继续经过 `backupFile + atomicWrite`。
 - 不新增依赖，不做无关重构，不触发文件级格式化。
 - 验证命令：`npx vitest run --pool=threads tests/prompts.test.ts tests/prompt-live.test.ts tests/renderer/prompt-view.test.ts tests/data-io.test.ts`、`npx vitest run --pool=threads`、`npx tsc --noEmit -p tsconfig.node.json`。
@@ -62,11 +62,9 @@
 ## 显式假设与裁决
 
 1. **假设：spec 的 `description` 是文案层面的字段描述，实际实现沿用现有 `desc`。** 依据：`src/main/types.ts:30` 与全部现有服务/UI/测试均使用 `desc`；重命名会引入不必要的数据迁移。若该假设错误，代价是导出的数据字段名仍为 `desc`，与 spec 字面示例不一致。
-2. **假设：spec 的 `isActive` 等价于当前代码的 `enabled`。** 依据：两者语义均为“唯一激活状态”；旧导出数据实际字段名是 `enabled`。若错误，代价是旧备份兼容分支漏掉真实字段名。
-3. **假设：备份 JSON version 升到 2，但 `data.json` 内部 `StoreData.version` 保持 1。** 依据：spec 只要求“导出 JSON 版本号 +1”，未要求内部 store 版本升级。若错误，代价是导入/导出测试与默认 store 结构需要额外一轮版本迁移。
-4. **裁决：移除“从各 harness 导入”按钮与后端函数。** 依据：spec 规定“另存为”是 live 进入 saved 的唯一入口，且启动不得自动产生记录；保留手动批量导入会违背该模型。若判断错误，代价是丢失一个旧入口，需要另行恢复。
-5. **裁决：Dashboard 标签改为“已保存提示词”并统计 saved 总数。** 依据：删除 `enabled` 后“激活中的提示词”无法计算；这是必要关联影响。若判断错误，代价是 Dashboard 文案不符合用户预期。
-6. **测试例外：IPC/preload 与 DOM 集成无自动化单测。** 依据：`ipc.ts` 顶层导入 `electron`，现有测试体系没有 Electron IPC harness；DOM 模块无测试先例。计划用服务层测试、纯 renderer 函数测试、TypeScript 门与人工验收覆盖；实施前需用户确认本计划即确认该例外。
+2. **裁决：移除“从各 harness 导入”按钮与后端函数。** 依据：spec 规定“另存为”是 live 进入 saved 的唯一入口，且启动不得自动产生记录；保留手动批量导入会违背该模型。若判断错误，代价是丢失一个旧入口，需要另行恢复。
+3. **裁决：Dashboard 标签改为“已保存提示词”并统计 saved 总数。** 依据：删除 `enabled` 后“激活中的提示词”无法计算；这是必要关联影响。若判断错误，代价是 Dashboard 文案不符合用户预期。
+4. **测试例外：IPC/preload 与 DOM 集成无自动化单测。** 依据：`ipc.ts` 顶层导入 `electron`，现有测试体系没有 Electron IPC harness；DOM 模块无测试先例。计划用服务层测试、纯 renderer 函数测试、TypeScript 门与人工验收覆盖；实施前需用户确认本计划即确认该例外。
 
 ---
 
@@ -110,31 +108,9 @@ import {
 } from '../src/main/services/prompts'
 ```
 
-在 `PromptItem` 类型导入后新增：
+将 `savePrompt`、`deletePrompt`、`copyPrompt` 三个旧 describe 整体替换为：
 
 ```ts
-type LegacyPrompt = PromptItem & { enabled?: boolean }
-```
-
-将 `listPrompts`、`savePrompt`、`deletePrompt`、`copyPrompt` 四个旧 describe 整体替换为：
-
-```ts
-describe('listPrompts（旧数据兼容）', () => {
-  it('读取旧数据时忽略 enabled，并回退 createdAt', async () => {
-    const legacy: LegacyPrompt = {
-      id: 'p1', name: 'A', content: 'A-content',
-      enabled: true, createdAt: 0, updatedAt: 123
-    }
-    await seed('dsh', [legacy])
-
-    const list = listPrompts('dsh', ctx)
-
-    expect(list).toEqual([
-      { id: 'p1', name: 'A', content: 'A-content', createdAt: 123, updatedAt: 123 }
-    ])
-  })
-})
-
 describe('savePrompt（saved 库 CRUD）', () => {
   it('新增：生成 id、createdAt、updatedAt，不写 enabled，不写指令文件', async () => {
     await seed('dsh', [])
@@ -465,18 +441,6 @@ async function writePromptFile(
   await atomicWrite(filePath, content)
 }
 
-function normalizePrompt(raw: PromptItem): PromptItem {
-  const p = raw as PromptItem & { enabled?: unknown }
-  return {
-    id: p.id,
-    name: p.name,
-    desc: p.desc,
-    content: p.content,
-    createdAt: p.createdAt ?? p.updatedAt ?? 0,
-    updatedAt: p.updatedAt ?? 0
-  }
-}
-
 async function readLiveState(filePath: string): Promise<{
   exists: boolean
   content: string
@@ -496,7 +460,7 @@ async function readLiveState(filePath: string): Promise<{
 
 export function listPrompts(agentId: AgentId, ctx?: PromptCtx): PromptItem[] {
   const c = ctxOf(ctx)
-  return (loadStore(c.dataFile).prompts[agentId] ?? []).map(normalizePrompt)
+  return loadStore(c.dataFile).prompts[agentId] ?? []
 }
 
 export async function savePrompt(
@@ -506,7 +470,7 @@ export async function savePrompt(
 ): Promise<PromptItem[]> {
   const c = ctxOf(ctx)
   const data = loadStore(c.dataFile)
-  const list = (data.prompts[agentId] ?? []).map(normalizePrompt)
+  const list = data.prompts[agentId] ?? []
   const idx = list.findIndex((p) => p.id === item.id)
   const now = Date.now()
 
@@ -541,7 +505,7 @@ export async function deletePrompt(
 ): Promise<PromptItem[]> {
   const c = ctxOf(ctx)
   const data = loadStore(c.dataFile)
-  const list = (data.prompts[agentId] ?? []).map(normalizePrompt)
+  const list = data.prompts[agentId] ?? []
   const idx = list.findIndex((p) => p.id === id)
   if (idx < 0) throw new Error(`提示词不存在：${id}`)
 
@@ -566,14 +530,14 @@ export async function copyPrompt(
 ): Promise<{ copiedTo: AgentId[] }> {
   const c = ctxOf(ctx)
   const data = loadStore(c.dataFile)
-  const source = (data.prompts[agentId] ?? []).map(normalizePrompt).find((p) => p.id === id)
+  const source = (data.prompts[agentId] ?? []).find((p) => p.id === id)
   if (!source) throw new Error(`提示词不存在：${id}`)
 
   const copiedTo: AgentId[] = []
   for (const target of targets) {
     if (target === agentId || copiedTo.includes(target)) continue
     if (!AGENTS.some((a) => a.id === target)) continue
-    const list = (data.prompts[target] ?? []).map(normalizePrompt)
+    const list = data.prompts[target] ?? []
     const now = Date.now()
     list.push({
       id: newPromptId(),
@@ -598,7 +562,7 @@ export async function getPromptSnapshot(
   const c = ctxOf(ctx)
   const data = loadStore(c.dataFile)
   const settings = loadSettings(c.settingsFile)
-  const prompts = (data.prompts[agentId] ?? []).map(normalizePrompt)
+  const prompts = data.prompts[agentId] ?? []
   const r = resolveAgentPaths(agentId, settings.dirOverrides, c.env)
   const live = await readLiveState(r.promptFile)
   const matchedIds = prompts.filter((p) => p.content === live.content).map((p) => p.id)
@@ -636,7 +600,7 @@ export async function applyPrompt(
   const c = ctxOf(ctx)
   const data = loadStore(c.dataFile)
   const settings = loadSettings(c.settingsFile)
-  const list = (data.prompts[agentId] ?? []).map(normalizePrompt)
+  const list = data.prompts[agentId] ?? []
   const target = list.find((p) => p.id === id)
   if (!target) throw new Error(`提示词不存在：${id}`)
 
@@ -1569,217 +1533,14 @@ git commit -m "feat: 调整提示词启动与统计行为"
 
 ---
 
-### Task 5: 备份导入导出版本与旧数据兼容
-
-**Files:**
-- Modify: `src/main/data-io.ts`
-- Modify: `tests/data-io.test.ts`
-
-**Interfaces:**
-- Consumes: Task 1 的 `PromptItem`（无 `enabled`，包含 `createdAt`）。
-- Produces: 导出备份 `version: 2`；`validateBackup` 接受 version `1` 与 `2`，version `1` 中的旧提示词 `enabled` 被忽略并删除，缺失 `createdAt` 时用 `updatedAt` 兜底。
-
-- [ ] **Step 1: 修改失败测试**
-
-将 `tests/data-io.test.ts` 的 `buildExportPayload` describe 替换为：
-
-```ts
-describe('buildExportPayload', () => {
-  it('version=2、exportedAt 可注入、data/settings 原样保留', () => {
-    const now = new Date('2025-01-01T00:00:00.000Z')
-    const payload = buildExportPayload(sampleData(), sampleSettings(), now)
-
-    expect(payload.version).toBe(2)
-    expect(payload.exportedAt).toBe('2025-01-01T00:00:00.000Z')
-    expect(payload.data).toEqual(sampleData())
-    expect(payload.settings).toEqual(sampleSettings())
-  })
-})
-```
-
-将 `validateBackup` describe 的合法备份测试替换为：
-
-```ts
-it('合法 v2 备份：还原 data/settings', () => {
-  const payload = validateBackup(
-    JSON.stringify({
-      version: 2,
-      exportedAt: '2025-01-01T00:00:00.000Z',
-      data: sampleData(),
-      settings: sampleSettings()
-    })
-  )
-
-  expect(payload.version).toBe(2)
-  expect(payload.exportedAt).toBe('2025-01-01T00:00:00.000Z')
-  expect(payload.data).toEqual(sampleData())
-  expect(payload.settings).toEqual(sampleSettings())
-})
-
-it('合法 v1 备份：忽略旧提示词 enabled 字段并回退 createdAt', () => {
-  const legacyData = {
-    ...sampleData(),
-    prompts: {
-      dsh: [{
-        id: 'p1',
-        name: 'A',
-        desc: 'old',
-        content: 'C',
-        enabled: true,
-        updatedAt: 123
-      }],
-      claude: [], codex: [], gemini: [], grok: [], opencode: [], hermes: []
-    }
-  }
-
-  const payload = validateBackup(JSON.stringify({
-    version: 1,
-    exportedAt: '2025-01-01T00:00:00.000Z',
-    data: legacyData,
-    settings: sampleSettings()
-  }))
-
-  expect(payload.version).toBe(1)
-  expect(payload.data.prompts.dsh).toEqual([{
-    id: 'p1',
-    name: 'A',
-    desc: 'old',
-    content: 'C',
-    createdAt: 123,
-    updatedAt: 123
-  }])
-})
-```
-
-将原“version 非 1 抛错”测试替换为：
-
-```ts
-it('version 1 与 2 之外抛错', () => {
-  expect(() =>
-    validateBackup(JSON.stringify({ version: 3, data: {}, settings: {} }))
-  ).toThrow(/版本不支持/)
-})
-```
-
-在 `applyImport` 相关测试中新增：
-
-```ts
-it('导入 v1 备份时不会把旧 enabled 状态写入 data.json', async () => {
-  const dataF = path.join(tmp, 'data.json')
-  const setF = path.join(tmp, 'settings.json')
-  const payload = validateBackup(JSON.stringify({
-    version: 1,
-    data: {
-      version: 1,
-      mcpItems: [],
-      skills: [],
-      prompts: {
-        dsh: [{ id: 'p1', name: 'A', content: 'C', enabled: true, updatedAt: 9 }],
-        claude: [], codex: [], gemini: [], grok: [], opencode: [], hermes: []
-      },
-      skillRepos: []
-    },
-    settings: sampleSettings()
-  }))
-
-  await applyImport(payload, dataF, setF)
-
-  const saved = JSON.parse(await fs.readFile(dataF, 'utf8'))
-  expect(saved.prompts.dsh[0]).not.toHaveProperty('enabled')
-  expect(saved.prompts.dsh[0].createdAt).toBe(9)
-})
-```
-
-- [ ] **Step 2: 运行测试确认失败**
-
-Run: `npx vitest run --pool=threads tests/data-io.test.ts`
-Expected: FAIL，包含 `expected 2 to be 1` 或 version 2 不支持。
-
-- [ ] **Step 3: 实现导入导出兼容**
-
-将 `src/main/data-io.ts:9-25` 替换为：
-
-```ts
-/** 导出/导入的单 JSON 备份结构；导入可接受历史 v1，导出固定 v2 */
-export interface ExportPayload {
-  version: 1 | 2
-  exportedAt: string
-  data: StoreData
-  settings: AppSettings
-}
-
-function normalizePromptData(data: StoreData): StoreData {
-  const prompts = data.prompts ?? ({} as StoreData['prompts'])
-  const normalized = Object.fromEntries(
-    Object.entries(prompts).map(([agentId, items]) => [
-      agentId,
-      (Array.isArray(items) ? items : []).map((item) => {
-        const legacy = item as typeof item & { enabled?: unknown }
-        const { enabled: _ignored, ...rest } = legacy
-        return {
-          ...rest,
-          createdAt: rest.createdAt ?? rest.updatedAt ?? 0
-        }
-      })
-    ])
-  ) as StoreData['prompts']
-  return { ...data, prompts: normalized }
-}
-
-export function buildExportPayload(
-  data: StoreData,
-  settings: AppSettings,
-  now: Date = new Date()
-): ExportPayload {
-  return { version: 2, exportedAt: now.toISOString(), data, settings }
-}
-```
-
-将 `validateBackup` 的版本检查与返回替换为：
-
-```ts
-if (o.version !== 1 && o.version !== 2) {
-  throw new Error(`备份文件版本不支持：${String(o.version)}（当前支持 1、2）`)
-}
-if (!o.data || typeof o.data !== 'object' || Array.isArray(o.data)) {
-  throw new Error('备份文件缺少 data 字段')
-}
-if (!o.settings || typeof o.settings !== 'object' || Array.isArray(o.settings)) {
-  throw new Error('备份文件缺少 settings 字段')
-}
-return {
-  version: o.version,
-  exportedAt: typeof o.exportedAt === 'string' ? o.exportedAt : new Date().toISOString(),
-  data: normalizePromptData(o.data as StoreData),
-  settings: o.settings as AppSettings
-}
-```
-
-- [ ] **Step 4: 运行验证**
-
-Run: `npx vitest run --pool=threads tests/data-io.test.ts`
-Expected: PASS。
-
-Run: `npx tsc --noEmit -p tsconfig.node.json`
-Expected: exit 0。
-
-- [ ] **Step 5: Commit**
-
-```powershell
-git add src/main/data-io.ts tests/data-io.test.ts
-git commit -m "feat: 升级提示词备份格式"
-```
-
----
-
-### Task 6: 全量验证与人工验收
+### Task 5: 全量验证与人工验收
 
 **Files:**
 - No new source files.
 - Potential generated artifacts from `pnpm build` are not committed.
 
 **Interfaces:**
-- Consumes: Task 1–5 的完整实现。
+- Consumes: Task 1–4 的完整实现。
 - Produces: 可交付的测试、类型、构建与人工验收证据。
 
 - [ ] **Step 1: 静态残留检查**
@@ -1819,19 +1580,17 @@ Expected: exit 0。若沙箱因 esbuild 命名管道限制失败，按项目既�
 
 启动应用后逐项验证：
 
-1. 准备一份旧 `data.json`，其中某条 prompt 带 `enabled: true`；启动后原记录数量不变，不新增“原始提示词”。
-2. 外部修改当前 harness 指令文件后进入提示词 tab 或点击“刷新”，当前内容、mtime、一致性状态均更新。
-3. 当前内容与某条 saved 一致时点击“应用”，无确认框，指令文件内容保持一致，写前备份生成。
-4. 当前内容为未保存自定义内容时点击“应用”，出现“取消 / 先保存当前内容为新提示词再应用 / 直接覆盖”三选一：
+1. 外部修改当前 harness 指令文件后进入提示词 tab 或点击“刷新”，当前内容、mtime、一致性状态均更新。
+2. 当前内容与某条 saved 一致时点击“应用”，无确认框，指令文件内容保持一致，写前备份生成。
+3. 当前内容为未保存自定义内容时点击“应用”，出现“取消 / 先保存当前内容为新提示词再应用 / 直接覆盖”三选一：
    - 取消：文件不变；
    - 直接覆盖：文件变为目标内容；
    - 先保存再应用：需填写名称，保存后新记录出现且文件变为新记录内容。
-5. 点击“另存为新提示词”，当前 live 内容固化为新 saved 记录，其他记录不变。
-6. 删除与当前文件内容一致的 saved 记录，指令文件内容不变。
-7. 点击“对比”，能看到当前内容与 saved 内容的行级 diff。
-8. 复制到其他 harness 后，目标记录为普通 saved 记录，不携带 `enabled`/应用状态，目标指令文件不变。
-9. 导入旧 v1 备份后，提示词条目可显示、应用、删除；导出新备份的 JSON 顶层 `version` 为 `2`。
-10. Dashboard 提示词统计显示 saved 总数，标签为“已保存提示词”。
+4. 点击“另存为新提示词”，当前 live 内容固化为新 saved 记录，其他记录不变。
+5. 删除与当前文件内容一致的 saved 记录，指令文件内容不变。
+6. 点击“对比”，能看到当前内容与 saved 内容的行级 diff。
+7. 复制到其他 harness 后，目标记录为普通 saved 记录，不携带应用状态，目标指令文件不变。
+8. Dashboard 提示词统计显示 saved 总数，标签为“已保存提示词”。
 
 - [ ] **Step 6: 收尾**
 
@@ -1850,7 +1609,6 @@ Expected: exit 0。若沙箱因 esbuild 命名管道限制失败，按项目既�
 - 编辑 live、另存为、应用、对比、复制：Task 1 写文件 API，Task 2 diff，Task 3 UI。
 - 应用冲突三选一：Task 3 `modal-apply-prompt`。
 - 写前备份 + 原子写入：Task 1 `writePromptFile` 继续复用 `backupFile`/`atomicWrite`。
-- 旧数据兼容与导入导出 version +1：Task 1 读取兜底，Task 5 备份格式。
 - 边界情况：文件不存在、空文件、重复记录、目录覆盖分别在 Task 1/2/3 覆盖。
 - Dashboard 关联影响：Task 4。
 
