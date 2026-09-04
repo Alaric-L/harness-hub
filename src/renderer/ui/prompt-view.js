@@ -17,6 +17,11 @@ export function formatPromptMtime(mtime){
   return new Date(mtime).toLocaleString('zh-CN', { hour12: false });
 }
 
+/** saved 卡片是否标记「与当前内容一致」：仅当文件存在、内容非空且命中匹配（空对空不算生效） */
+export function promptMatchesLive(prompt, live){
+  return !!live && live.exists && live.content !== '' && (live.matchedIds || []).includes(prompt.id);
+}
+
 function splitLines(text){
   if(text === '') return [];
   return String(text).split(/\r\n|\r|\n/);

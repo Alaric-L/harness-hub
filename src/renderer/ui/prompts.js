@@ -4,7 +4,7 @@ import { icon } from '../icons.js';
 import { $, showToast, askConfirm, esc } from './common.js';
 import { state } from '../state.js';
 import { renderDashboard } from './dashboard.js';
-import { fallbackPromptSnapshot, formatPromptMtime, liveStatusText, promptDiffText, savedAfterIntent } from './prompt-view.js';
+import { fallbackPromptSnapshot, formatPromptMtime, liveStatusText, promptDiffText, promptMatchesLive, savedAfterIntent } from './prompt-view.js';
 
 function resolvedOf(agentId){
   const r = state.agentsDetailed && state.agentsDetailed.resolved[agentId];
@@ -98,10 +98,13 @@ function renderLiveCard(agentId, promptFile){
 function renderSavedList(agentId){
   const list = state.promptsByAgent[agentId] || [];
   const hasList = list.length > 0;
-  $('prompt-list').innerHTML = list.map(p=>`
-    <div class="prompt-card">
+  const live = snapshotOf(agentId).live;
+  $('prompt-list').innerHTML = list.map(p=>{
+    const on = promptMatchesLive(p, live);
+    return `
+    <div class="prompt-card${on ? ' on' : ''}">
       <div class="pc-main">
-        <div class="pc-name">${esc(p.name)}</div>
+        <div class="pc-name">${esc(p.name)}${on ? '<span class="pc-on-badge">与当前内容一致</span>' : ''}</div>
         ${p.desc ? `<div class="pc-desc">${esc(p.desc)}</div>` : ''}
         <div class="pc-meta">更新于 ${fmtUpdated(p.updatedAt)}</div>
       </div>
@@ -112,7 +115,7 @@ function renderSavedList(agentId){
         <button class="btn btn-ghost btn-sm" data-pt-edit="${p.id}">编辑</button>
         <button class="btn btn-ghost btn-sm" data-pt-del="${p.id}">删除</button>
       </div>
-    </div>`).join('');
+    </div>`}).join('');
   $('prompt-saved-empty').classList.toggle('hidden', hasList);
   $('prompt-list').classList.toggle('hidden', !hasList);
 }

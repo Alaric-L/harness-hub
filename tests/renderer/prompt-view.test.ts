@@ -5,6 +5,7 @@ import {
   liveStatusText,
   fallbackPromptSnapshot,
   promptDiffText,
+  promptMatchesLive,
   savedAfterIntent,
   savedPromptCount
 } from '../../src/renderer/ui/prompt-view.js'
@@ -83,6 +84,28 @@ describe('fallbackPromptSnapshot', () => {
       agentId: 'dsh', path: '/fake/AGENTS.md', exists: false,
       content: '', mtime: null, matchedIds: []
     })
+  })
+})
+
+describe('promptMatchesLive', () => {
+  it('命中 matchedIds 且内容非空时标记为与当前内容一致', () => {
+    expect(promptMatchesLive({ id: 'p3' }, { exists: true, content: 'OTHER', matchedIds: ['p3'] }))
+      .toBe(true)
+  })
+
+  it('未命中 matchedIds 时不标记', () => {
+    expect(promptMatchesLive({ id: 'p1' }, { exists: true, content: 'OTHER', matchedIds: ['p3'] }))
+      .toBe(false)
+  })
+
+  it('文件内容为空时不标记（空对空不算生效）', () => {
+    expect(promptMatchesLive({ id: 'p1' }, { exists: true, content: '', matchedIds: ['p1'] }))
+      .toBe(false)
+  })
+
+  it('文件不存在时不标记', () => {
+    expect(promptMatchesLive({ id: 'p1' }, { exists: false, content: '', matchedIds: ['p1'] }))
+      .toBe(false)
   })
 })
 
