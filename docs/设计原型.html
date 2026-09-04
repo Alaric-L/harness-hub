@@ -190,6 +190,26 @@
   .pc-desc{font-size:12.5px; color:var(--text-dim); margin-top:4px;}
   .pc-meta{font-size:11px; color:var(--text-faint); margin-top:5px;}
   .pc-actions{display:flex; gap:6px; flex-shrink:0;}
+  .prompt-live-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px 18px; box-shadow:var(--shadow-sm); margin-bottom:14px;}
+  .live-head{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;}
+  .live-title{font-size:13.5px; font-weight:700;}
+  .live-status{font-size:11px; font-weight:600; padding:4px 9px; border-radius:5px; background:var(--surface-3); color:var(--text-dim);}
+  .live-status.match{color:var(--on); background:#E6F7EE;}
+  .live-status.custom{color:#9A6700; background:#FFF8C5;}
+  .live-status.missing{color:var(--danger, #C0392B); background:#FDECEA;}
+  .live-mtime{font-size:11px; color:var(--text-faint); margin-left:auto;}
+  .live-actions{display:flex; gap:8px; margin-top:12px;}
+  .live-preview{margin-top:12px;}
+  .live-preview summary{cursor:pointer; font-size:12.5px; color:var(--text-dim);}
+  .live-preview pre{margin:8px 0 0; padding:12px; border:1px solid var(--border-soft); border-radius:var(--radius-sm); background:var(--surface-2); max-height:260px; overflow:auto; white-space:pre-wrap; word-break:break-word; font-size:12px; color:var(--text-dim);}
+  .saved-header{display:flex; align-items:center; justify-content:space-between; gap:12px; margin:18px 0 12px;}
+  .saved-header h4{font-family:var(--font-display); font-size:14px; margin:0;}
+  .hidden{display:none !important;}
+  .prompt-apply-actions{display:flex; flex-direction:column; gap:8px;}
+  .prompt-apply-actions .btn{width:100%;}
+  .prompt-apply-actions .btn-danger{background:#D93025; border-color:#D93025; color:#fff;}
+  .prompt-apply-actions .btn-danger:hover{background:#B3261E; border-color:#B3261E; color:#fff;}
+  .prompt-diff{margin:0; padding:12px; border:1px solid var(--border-soft); border-radius:var(--radius-sm); background:var(--surface-2); max-height:420px; overflow:auto; white-space:pre-wrap; word-break:break-word; font-size:12px; color:var(--text-dim);}
   .empty-box{background:var(--surface); border:1px dashed var(--border); border-radius:var(--radius); padding:44px 20px; text-align:center; color:var(--text-faint);}
   .empty-box h4{font-family:var(--font-display); font-size:15px; color:var(--text-dim); margin-bottom:6px;}
   .empty-box p{font-size:12.5px; margin-bottom:14px;}
@@ -370,7 +390,7 @@
           <div class="stat-card"><div class="num accent">7</div><div class="lbl">已接入 Harness</div></div>
           <div class="stat-card"><div class="num" id="stat-mcp">0</div><div class="lbl">MCP 服务总数</div></div>
           <div class="stat-card"><div class="num" id="stat-skill">0</div><div class="lbl">已安装 Skills</div></div>
-          <div class="stat-card"><div class="num" id="stat-prompt">0</div><div class="lbl">激活中的提示词</div></div>
+          <div class="stat-card"><div class="num" id="stat-prompt">0</div><div class="lbl">已保存提示词</div></div>
         </div>
         <div class="dash-section">
           <h4>Harness 概览</h4>
@@ -460,9 +480,18 @@
         <div class="prompt-tabs" id="prompt-tabs"></div>
         <div class="prompt-head">
           <span class="prompt-file" id="prompt-file"></span>
+        </div>
+        <div class="prompt-live-card" id="prompt-live-card"></div>
+        <div class="saved-header">
+          <h4>已保存的提示词</h4>
           <button class="btn btn-primary btn-icon" id="btn-add-prompt">+ 新增提示词</button>
         </div>
         <div class="prompt-list" id="prompt-list"></div>
+        <div class="empty-box hidden" id="prompt-saved-empty">
+          <h4>还没有保存的提示词</h4>
+          <p>可将当前内容另存为新提示词，或直接新增一条命名提示词。</p>
+          <button class="btn btn-primary" id="btn-add-prompt-empty">+ 新增提示词</button>
+        </div>
       </section>
 
       <!-- ===== Agents management ===== -->
@@ -497,7 +526,7 @@
           <div class="toggle-row">
             <div>
               <div class="t-label">写入前自动备份</div>
-              <div class="t-sub">每次修改 harness 配置文件（MCP 开关、提示词激活）前，先备份原文件到本地历史目录</div>
+              <div class="t-sub">每次修改 harness 配置文件（MCP 开关、提示词应用/保存）前，先备份原文件到本地历史目录</div>
             </div>
             <label class="switch"><input type="checkbox" checked><span class="slider"></span></label>
           </div>
@@ -725,8 +754,8 @@
         </div>
       </div>
       <label class="field-label">内容（Markdown）</label>
-      <textarea class="field-input" id="pf-content" style="min-height:220px;" placeholder="激活后，该内容将写入当前 harness 的指令文件…"></textarea>
-      <div class="field-hint">保存后条目为未激活状态；在列表中开启开关才会写入指令文件。</div>
+      <textarea class="field-input" id="pf-content" style="min-height:220px;" placeholder="保存后仅更新提示词库，不会写入指令文件…"></textarea>
+      <div class="field-hint">保存后仅更新提示词库，不会写入指令文件；需要写入时请在列表中点击「应用」。</div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" id="pf-cancel">取消</button>
@@ -741,10 +770,56 @@
     <h3>复制提示词到其他 harness</h3>
     <p class="modal-sub" id="cp-sub"></p>
     <div class="target-list" id="cp-targets"></div>
-    <div class="info-box">ℹ 复制后的条目为<b>未激活</b>状态：不会影响目标 harness 当前激活的提示词与指令文件。同名条目将自动追加序号。</div>
+    <div class="info-box">ℹ 复制后的条目为普通已保存提示词：不会影响目标 harness 当前指令文件。同名条目将自动追加序号。</div>
     <div class="modal-actions">
       <button class="btn btn-ghost" id="cp-cancel">取消</button>
       <button class="btn btn-primary" id="cp-confirm">复制</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 编辑当前内容 Modal ===== -->
+<div class="modal-overlay" id="modal-live-form">
+  <div class="modal modal-lg">
+    <h3>编辑当前内容</h3>
+    <p class="modal-sub" id="live-form-sub"></p>
+    <div class="modal-scroll">
+      <label class="field-label">当前指令文件内容</label>
+      <textarea class="field-input" id="live-editor-content" style="min-height:280px;"></textarea>
+      <div class="field-hint">保存会直接写回指令文件；写入前自动备份，并使用原子写入。</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="live-editor-cancel">取消</button>
+      <button class="btn btn-primary" id="live-editor-save">保存当前内容</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 应用提示词冲突确认 Modal ===== -->
+<div class="modal-overlay" id="modal-apply-prompt">
+  <div class="modal" style="width:480px;">
+    <h3>应用提示词</h3>
+    <p class="modal-sub" id="apply-prompt-message"></p>
+    <div class="prompt-apply-actions">
+      <button class="btn btn-ghost" id="apply-cancel">取消</button>
+      <button class="btn btn-ghost" id="apply-save-first">先保存当前内容为新提示词再应用</button>
+      <button class="btn btn-danger" id="apply-overwrite">直接覆盖</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 提示词对比 Modal ===== -->
+<div class="modal-overlay" id="modal-prompt-compare">
+  <div class="modal modal-lg">
+    <h3 id="prompt-compare-title">对比提示词</h3>
+    <p class="modal-sub" id="prompt-compare-sub"></p>
+    <div class="modal-scroll">
+      <div class="field-label">差异（`-` 当前文件内容，`+` 已保存提示词内容）</div>
+      <pre class="prompt-diff" id="prompt-compare-diff"></pre>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="prompt-compare-close">关闭</button>
+      <button class="btn btn-primary" id="prompt-compare-apply">应用该提示词</button>
     </div>
   </div>
 </div>
@@ -921,37 +996,51 @@ const UNMANAGED_SKILLS = [
   {dir:'skill-template', name:'skill-template', desc:'创建新 skill 的目录模板（Agent Skills 标准）', foundIn:['shared'], path:'~/.agents/skills/skill-template'},
 ];
 
-/* ---- 提示词库（每 harness 一套，单条激活） ---- */
+/* ---- 提示词 v2：已保存命名库（saved，无激活状态） ---- */
 const PROMPTS = {
   dsh: [
-    {id:'dsh-1', name:'中文 · 全栈工程师', desc:'中文回复，先说明修改思路再动手', enabled:true,  updated:'2 小时前',
+    {id:'dsh-1', name:'中文 · 全栈工程师', desc:'中文回复，先说明修改思路再动手', updated:'2 小时前',
      content:'你是一名资深全栈工程师助手。使用中文回复。回答前先思考用户的真实意图，优先给出可运行的代码，并解释关键决策。涉及不可逆操作前必须先确认。'},
-    {id:'dsh-2', name:'English · Minimal', desc:'Concise English answers, minimal diffs', enabled:false, updated:'3 天前',
+    {id:'dsh-2', name:'English · Minimal', desc:'Concise English answers, minimal diffs', updated:'3 天前',
      content:'You are a precise coding agent. Always run tests after edits. Prefer minimal diffs over large rewrites. Ask before deleting files.'},
   ],
   claude: [
-    {id:'cl-1', name:'资深工程师助手', desc:'先思考真实意图，优先给可运行代码', enabled:true, updated:'昨天',
+    {id:'cl-1', name:'资深工程师助手', desc:'先思考真实意图，优先给可运行代码', updated:'昨天',
      content:'你是一名资深全栈工程师助手。回答前先思考用户的真实意图，优先给出可运行的代码，并解释关键决策。'},
-    {id:'cl-2', name:'Code Review 模式', desc:'评审视角：只提问题、风险与改进建议', enabled:false, updated:'5 天前',
+    {id:'cl-2', name:'Code Review 模式', desc:'评审视角：只提问题、风险与改进建议', updated:'5 天前',
      content:'你是代码评审专家。逐项检查正确性、边界条件、可读性与测试覆盖，按严重程度排序输出问题清单。'},
   ],
   codex: [
-    {id:'cx-1', name:'精确编码代理', desc:'英文、小步提交、测试先行', enabled:true, updated:'3 天前',
+    {id:'cx-1', name:'精确编码代理', desc:'英文、小步提交、测试先行', updated:'3 天前',
      content:'You are a precise coding agent. Always run tests after edits. Prefer minimal diffs over large rewrites.'},
   ],
   gemini: [
-    {id:'gm-1', name:'全栈工程师助手', desc:'与 Claude 库同源的通用配置', enabled:true, updated:'昨天',
+    {id:'gm-1', name:'全栈工程师助手', desc:'与 Claude 库同源的通用配置', updated:'昨天',
      content:'你是一名资深全栈工程师助手。回答前先思考用户的真实意图，优先给出可运行的代码。'},
   ],
   grok: [],
   opencode: [
-    {id:'oc-1', name:'自主编码代理', desc:'小步可验证，记录每次文件变更', enabled:true, updated:'1 天前',
+    {id:'oc-1', name:'自主编码代理', desc:'小步可验证，记录每次文件变更', updated:'1 天前',
      content:'You are OpenCode, an autonomous coding agent. Work in small verifiable steps. Log every file change.'},
   ],
   hermes: [
-    {id:'hm-1', name:'稳定执行者', desc:'聚焦任务执行与结果汇报', enabled:true, updated:'4 天前',
+    {id:'hm-1', name:'稳定执行者', desc:'聚焦任务执行与结果汇报', updated:'4 天前',
      content:'你是一名稳定可靠的执行代理。严格按指令执行任务，及时汇报进展与阻塞。'},
   ],
+};
+
+/* ---- 提示词 v2：当前内容（live，不落库，运行时读盘模拟） ----
+ * 状态徽章由运行时比对 live.content 与各 saved 记录实时计算：
+ * dsh 命中 dsh-1 → 「与「中文 · 全栈工程师」一致」；claude 命中 cl-2；
+ * gemini 为 AI 直接编辑（未保存）→ 「自定义内容（未保存）」；grok 无指令文件 → 「未找到指令文件」。 */
+const LIVE = {
+  dsh:   {exists:true,  content: PROMPTS.dsh[0].content,  mtime:'2026-09-04 09:12'},
+  claude:{exists:true,  content: PROMPTS.claude[1].content, mtime:'2026-09-04 08:05'},
+  codex: {exists:true,  content: PROMPTS.codex[0].content, mtime:'2026-09-03 17:40'},
+  gemini:{exists:true,  content:'你是一名资深全栈工程师助手。回答前先思考用户的真实意图，优先给出可运行的代码。\n（以下为本会话临时追加的补充说明，未保存到提示词库——模拟 AI 直接编辑）', mtime:'2026-09-04 10:21'},
+  grok:  {exists:false, content:'', mtime:null},
+  opencode:{exists:true, content: PROMPTS.opencode[0].content, mtime:'2026-09-03 21:16'},
+  hermes:{exists:true,  content: PROMPTS.hermes[0].content, mtime:'2026-09-02 18:33'},
 };
 
 /* ================= 状态 ================= */
@@ -967,6 +1056,8 @@ let discStatus = 'all';
 let mcpEditingId = null;
 let promptEditing = null;   // {agentId, id} | null
 let copySourcePrompt = null;
+let promptFormIntent = null;   // {applyAfterSave:boolean} | null
+let applyPromptTarget = null;  // {agentId, id, name} | null（应用冲突确认中的目标）
 let confirmCb = null;
 let detailCtx = null;       // {kind, id}
 let wizType = 'stdio';
@@ -1011,12 +1102,12 @@ function renderSidebarAgents(){
 function renderDashboard(){
   $('stat-mcp').textContent = MCP_ITEMS.length;
   $('stat-skill').textContent = SKILLS_INSTALLED.length;
-  $('stat-prompt').textContent = AGENTS.reduce((n,a)=> n + PROMPTS[a.id].filter(p=>p.enabled).length, 0);
+  $('stat-prompt').textContent = AGENTS.reduce((n,a)=> n + PROMPTS[a.id].length, 0);
 
   $('dash-agent-grid').innerHTML = AGENTS.map(a=>{
     const mcp = MCP_ITEMS.filter(i=>i.apps[a.id]).length;
     const skill = SKILLS_INSTALLED.filter(i=>i.apps[a.id]).length;
-    const prompt = PROMPTS[a.id].filter(p=>p.enabled).length;
+    const prompt = PROMPTS[a.id].length;
     return `<div class="mini-agent-card">
       ${icon(a.id, 28, a.name)}
       <div>
@@ -1813,7 +1904,49 @@ function renderRepoList(){
   });
 }
 
-/* ================= 提示词视图 ================= */
+/* ================= 提示词 v2：当前内容（live）+ 已保存命名库（saved） ================= */
+function liveStatusText(agentId){
+  const live = LIVE[agentId];
+  if(!live.exists) return '未找到指令文件';
+  if(live.content === '') return '文件为空';
+  const matched = PROMPTS[agentId].filter(p=>p.content === live.content);
+  if(matched.length === 0) return '自定义内容（未保存）';
+  if(matched.length === 1) return `与「${matched[0].name}」一致`;
+  return `与「${matched[0].name}」等 ${matched.length} 条一致`;
+}
+
+function liveStatusClass(agentId){
+  const live = LIVE[agentId];
+  if(!live.exists || live.content === '') return 'missing';
+  return PROMPTS[agentId].some(p=>p.content === live.content) ? 'match' : 'custom';
+}
+
+function fmtUpdated(ts){
+  return ts || '未知';
+}
+
+/** 行级 diff（与实现一致）：`-` 当前内容将被替换的行，`+` 已保存内容新增行 */
+function promptDiffText(current, saved){
+  const split = t => t === '' ? [] : String(t).split(/\r\n|\r|\n/);
+  const a = split(current), b = split(saved);
+  const dp = Array.from({length:a.length+1}, ()=> new Array(b.length+1).fill(0));
+  for(let i=a.length-1; i>=0; i--){
+    for(let j=b.length-1; j>=0; j--){
+      dp[i][j] = a[i]===b[j] ? dp[i+1][j+1]+1 : Math.max(dp[i+1][j], dp[i][j+1]);
+    }
+  }
+  const lines = [];
+  let i=0, j=0;
+  while(i<a.length && j<b.length){
+    if(a[i]===b[j]){ lines.push(`  ${a[i]}`); i++; j++; }
+    else if(dp[i+1][j] >= dp[i][j+1]){ lines.push(`- ${a[i]}`); i++; }
+    else { lines.push(`+ ${b[j]}`); j++; }
+  }
+  while(i<a.length){ lines.push(`- ${a[i]}`); i++; }
+  while(j<b.length){ lines.push(`+ ${b[j]}`); j++; }
+  return lines.join('\n');
+}
+
 function renderPrompts(){
   // harness tabs
   $('prompt-tabs').innerHTML = AGENTS.map(a=>`
@@ -1828,66 +1961,136 @@ function renderPrompts(){
   });
 
   const agent = AGENT_BY(currentPromptAgent);
-  const list = PROMPTS[currentPromptAgent];
+  const live = LIVE[currentPromptAgent];
   $('prompt-file').textContent = `指令文件 · ${agent.promptFile}`;
 
-  if(list.length===0){
-    $('prompt-list').innerHTML = `<div class="empty-box">
-      <h4>「${agent.short}」还没有提示词</h4>
-      <p>新增一条提示词并激活，内容将写入 ${agent.promptFile}</p>
-      <button class="btn btn-primary" id="btn-add-prompt-empty">+ 新增提示词</button>
-    </div>`;
-    $('btn-add-prompt-empty').addEventListener('click', ()=> openPromptForm(null));
-    return;
-  }
+  // ---- 当前内容区（live，运行时读盘，不落库） ----
+  $('prompt-live-card').innerHTML = `
+    <div class="live-head">
+      <span class="live-title">当前内容</span>
+      <span class="live-status ${liveStatusClass(currentPromptAgent)}">${liveStatusText(currentPromptAgent)}</span>
+      <span class="live-mtime">最后修改：${live.mtime ? live.mtime : '未知'}</span>
+      <button class="btn btn-ghost btn-sm" id="btn-refresh-live">刷新</button>
+    </div>
+    <details class="live-preview">
+      <summary>内容预览</summary>
+      <pre>${esc(live.content)}</pre>
+    </details>
+    <div class="live-actions">
+      <button class="btn btn-ghost btn-sm" id="btn-edit-live">编辑</button>
+      <button class="btn btn-primary btn-sm" id="btn-save-live-as">另存为新提示词</button>
+    </div>
+    <div class="field-hint">指令文件路径：${esc(agent.promptFile)}</div>
+  `;
+  $('btn-refresh-live').addEventListener('click', ()=>{
+    showToast('（原型）已重新读取指令文件，当前内容与一致性状态已更新');
+  });
+  $('btn-edit-live').addEventListener('click', ()=>{
+    $('live-form-sub').textContent = `保存将直接写回 ${agent.promptFile}`;
+    $('live-editor-content').value = LIVE[currentPromptAgent].content;
+    $('modal-live-form').classList.add('open');
+  });
+  $('btn-save-live-as').addEventListener('click', ()=>{
+    openPromptForm(null, LIVE[currentPromptAgent].content);
+  });
 
+  // ---- 已保存库区（saved，无激活状态） ----
+  const list = PROMPTS[currentPromptAgent];
+  const hasList = list.length > 0;
   $('prompt-list').innerHTML = list.map(p=>`
-    <div class="prompt-card ${p.enabled?'on':''}">
-      <label class="switch" title="${p.enabled?'点击停用（指令文件将被清空）':'点击激活并写入指令文件'}">
-        <input type="checkbox" ${p.enabled?'checked':''} data-pt-toggle="${p.id}">
-        <span class="slider"></span>
-      </label>
+    <div class="prompt-card">
       <div class="pc-main">
-        <div class="pc-name">${esc(p.name)}
-          ${p.enabled ? `<span class="pc-on-badge">已激活 · 写入 ${agent.promptFile}</span>` : ''}
-        </div>
+        <div class="pc-name">${esc(p.name)}</div>
         ${p.desc ? `<div class="pc-desc">${esc(p.desc)}</div>` : ''}
-        <div class="pc-meta">更新于 ${p.updated}</div>
+        <div class="pc-meta">更新于 ${fmtUpdated(p.updated)}</div>
       </div>
       <div class="pc-actions">
+        <button class="btn btn-primary btn-sm" data-pt-apply="${p.id}">应用</button>
+        <button class="btn btn-ghost btn-sm" data-pt-compare="${p.id}">对比</button>
         <button class="btn btn-ghost btn-sm" data-pt-copy="${p.id}">复制到其他 harness</button>
         <button class="btn btn-ghost btn-sm" data-pt-edit="${p.id}">编辑</button>
-        <button class="btn btn-ghost btn-sm" data-pt-del="${p.id}" ${p.enabled?'disabled title="已激活的提示词不可删除，请先停用"':''}>删除</button>
+        <button class="btn btn-ghost btn-sm" data-pt-del="${p.id}">删除</button>
       </div>
     </div>`).join('');
+  $('prompt-saved-empty').classList.toggle('hidden', hasList);
+  $('prompt-list').classList.toggle('hidden', !hasList);
+  attachSavedActions(currentPromptAgent);
+}
 
-  // 激活 / 停用
-  $('prompt-list').querySelectorAll('[data-pt-toggle]').forEach(cb=>{
-    cb.addEventListener('change', ()=>{
-      const p = PROMPTS[currentPromptAgent].find(x=>x.id===cb.dataset.ptToggle);
-      if(cb.checked){
-        PROMPTS[currentPromptAgent].forEach(x=> x.enabled = false);
-        p.enabled = true;
-        p.updated = '刚刚';
-        showToast(`已激活「${p.name}」，内容写入 ${agent.promptFile}（原文件外部改动已自动回填）`);
-      } else {
-        p.enabled = false;
-        showToast(`已停用「${p.name}」，${agent.promptFile} 已清空`);
+function applyPromptById(agentId, id, name){
+  const p = PROMPTS[agentId].find(x=>x.id===id);
+  if(!p) return;
+  LIVE[agentId] = {exists:true, content:p.content, mtime:'刚刚'};
+  renderPrompts();
+  renderDashboard();
+  showToast(`已应用「${name}」，内容写入指令文件（写入前已自动备份）`);
+}
+
+function openApplyConfirm(agentId, prompt){
+  applyPromptTarget = {agentId, id:prompt.id, name:prompt.name};
+  $('apply-prompt-message').textContent =
+    `当前文件有未保存的内容，应用「${prompt.name}」将覆盖它。可以先保存当前内容为新提示词，或直接覆盖。`;
+  $('modal-apply-prompt').classList.add('open');
+}
+$('apply-cancel').addEventListener('click', ()=>{ $('modal-apply-prompt').classList.remove('open'); });
+$('apply-overwrite').addEventListener('click', ()=>{
+  $('modal-apply-prompt').classList.remove('open');
+  applyPromptById(applyPromptTarget.agentId, applyPromptTarget.id, applyPromptTarget.name);
+});
+$('apply-save-first').addEventListener('click', ()=>{
+  const t = applyPromptTarget;
+  $('modal-apply-prompt').classList.remove('open');
+  openPromptForm(null, LIVE[t.agentId].content, {applyAfterSave:true});
+});
+
+function attachSavedActions(agentId){
+  // 应用：与当前文件一致时直接写入；有未保存改动时走三选一确认
+  $('prompt-list').querySelectorAll('[data-pt-apply]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const p = PROMPTS[agentId].find(x=>x.id===btn.dataset.ptApply);
+      if(!p) return;
+      const live = LIVE[agentId];
+      const noContent = !live.exists || live.content === '';
+      const hasMatch = PROMPTS[agentId].some(x=>x.content === live.content);
+      if(!hasMatch && !noContent){
+        openApplyConfirm(agentId, p);
+        return;
       }
-      renderPrompts();
+      applyPromptById(agentId, p.id, p.name);
     });
   });
-  // 编辑
+  // 对比：行级 diff，可一键应用
+  $('prompt-list').querySelectorAll('[data-pt-compare]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const p = PROMPTS[agentId].find(x=>x.id===btn.dataset.ptCompare);
+      if(!p) return;
+      $('prompt-compare-title').textContent = `对比「${p.name}」`;
+      $('prompt-compare-sub').textContent = `当前文件：${AGENT_BY(agentId).promptFile}`;
+      $('prompt-compare-diff').textContent = promptDiffText(LIVE[agentId].content, p.content);
+      $('prompt-compare-apply').onclick = ()=>{
+        $('modal-prompt-compare').classList.remove('open');
+        const live = LIVE[agentId];
+        const noContent = !live.exists || live.content === '';
+        const hasMatch = PROMPTS[agentId].some(x=>x.content === live.content);
+        if(!hasMatch && !noContent){
+          openApplyConfirm(agentId, p);
+          return;
+        }
+        applyPromptById(agentId, p.id, p.name);
+      };
+      $('modal-prompt-compare').classList.add('open');
+    });
+  });
+  // 编辑 saved（仅更新库记录，不联动写入指令文件）
   $('prompt-list').querySelectorAll('[data-pt-edit]').forEach(btn=>{
     btn.addEventListener('click', ()=> openPromptForm(btn.dataset.ptEdit));
   });
-  // 删除
+  // 删除 saved（不再禁止删除，删除不影响指令文件）
   $('prompt-list').querySelectorAll('[data-pt-del]').forEach(btn=>{
-    if(btn.disabled) return;
     btn.addEventListener('click', ()=>{
-      const p = PROMPTS[currentPromptAgent].find(x=>x.id===btn.dataset.ptDel);
-      askConfirm('删除提示词', `确定删除「${p.name}」？`, ()=>{
-        const arr = PROMPTS[currentPromptAgent];
+      const p = PROMPTS[agentId].find(x=>x.id===btn.dataset.ptDel);
+      askConfirm('删除提示词', `确定删除「${p.name}」？删除不会修改当前指令文件。`, ()=>{
+        const arr = PROMPTS[agentId];
         arr.splice(arr.indexOf(p),1);
         renderPrompts();
         renderDashboard();
@@ -1902,41 +2105,69 @@ function renderPrompts(){
 }
 
 $('btn-add-prompt').addEventListener('click', ()=> openPromptForm(null));
+$('btn-add-prompt-empty').addEventListener('click', ()=> openPromptForm(null));
 
-function openPromptForm(editingId){
+/* ---- 编辑当前内容（写回指令文件，备份 + 原子写入） ---- */
+$('live-editor-cancel').addEventListener('click', ()=> $('modal-live-form').classList.remove('open'));
+$('live-editor-save').addEventListener('click', ()=>{
+  LIVE[currentPromptAgent] = {exists:true, content:$('live-editor-content').value, mtime:'刚刚'};
+  $('modal-live-form').classList.remove('open');
+  renderPrompts();
+  renderDashboard();
+  showToast('当前内容已保存（写入前已自动备份）');
+});
+
+/* ---- 对比 Modal 关闭 ---- */
+$('prompt-compare-close').addEventListener('click', ()=> $('modal-prompt-compare').classList.remove('open'));
+
+/* ---- 提示词表单（新增 / 编辑 / 另存为 / 先保存再应用） ---- */
+function openPromptForm(editingId, initialContent, intent){
   promptEditing = editingId ? {agentId: currentPromptAgent, id: editingId} : null;
+  promptFormIntent = (intent && intent.applyAfterSave) ? {applyAfterSave:true} : null;
   const agent = AGENT_BY(currentPromptAgent);
   const editing = editingId ? PROMPTS[currentPromptAgent].find(p=>p.id===editingId) : null;
   $('pf-title').textContent = editing ? '编辑提示词' : '新增提示词';
-  $('pf-sub').textContent = `${agent.name} · 激活后写入 ${agent.promptFile}`;
+  $('pf-sub').textContent = `${agent.name} · 保存后仅更新提示词库`;
   $('pf-name').value = editing ? editing.name : '';
   $('pf-desc').value = editing ? (editing.desc||'') : '';
-  $('pf-content').value = editing ? editing.content : '';
+  $('pf-content').value = editing ? editing.content : (initialContent || '');
   $('modal-prompt-form').classList.add('open');
 }
 $('pf-cancel').addEventListener('click', ()=> $('modal-prompt-form').classList.remove('open'));
 $('pf-save').addEventListener('click', ()=>{
   const name = $('pf-name').value.trim();
   if(!name){ showToast('请填写提示词名称'); return; }
-  const agent = AGENT_BY(currentPromptAgent);
-  if(promptEditing){
-    const p = PROMPTS[promptEditing.agentId].find(x=>x.id===promptEditing.id);
+  const agentId = currentPromptAgent;
+  const intent = promptFormIntent;
+  const editing = promptEditing;
+  let savedId = null;
+  if(editing){
+    const p = PROMPTS[editing.agentId].find(x=>x.id===editing.id);
     p.name = name;
     p.desc = $('pf-desc').value.trim();
     p.content = $('pf-content').value;
     p.updated = '刚刚';
-    showToast(p.enabled ? `已保存并写入 ${agent.promptFile}` : '已保存（未激活，不影响指令文件）');
+    savedId = p.id;
   } else {
-    PROMPTS[currentPromptAgent].push({
-      id: currentPromptAgent + '-' + Date.now(), name,
-      desc: $('pf-desc').value.trim(), content: $('pf-content').value,
-      enabled:false, updated:'刚刚',
-    });
-    showToast(`已创建提示词「${name}」（未激活）`);
+    const item = {id: currentPromptAgent + '-' + Date.now(), name,
+      desc: $('pf-desc').value.trim(), content: $('pf-content').value, updated:'刚刚'};
+    PROMPTS[currentPromptAgent].push(item);
+    savedId = item.id;
   }
+  promptFormIntent = null;
   $('modal-prompt-form').classList.remove('open');
+
+  if(intent && intent.applyAfterSave){
+    const saved = PROMPTS[agentId].find(p=>p.id===savedId);
+    LIVE[agentId] = {exists:true, content:saved.content, mtime:'刚刚'};
+    renderPrompts();
+    renderDashboard();
+    showToast(`已保存「${name}」并应用到当前指令文件`);
+    return;
+  }
   renderPrompts();
   renderDashboard();
+  showToast(editing ? `已保存提示词「${name}」` : `已创建提示词「${name}」`);
 });
 
 /* ---- 复制到其他 harness ---- */
@@ -1964,11 +2195,11 @@ $('cp-confirm').addEventListener('click', ()=>{
     let name = copySourcePrompt.name;
     let n = 1;
     while(PROMPTS[id].some(p=>p.name===name)) name = `${copySourcePrompt.name} (${++n})`;
-    PROMPTS[id].push({...copySourcePrompt, id: id+'-'+Date.now()+Math.random(), name, enabled:false, updated:'刚刚（复制）'});
+    PROMPTS[id].push({...copySourcePrompt, id: id+'-'+Date.now()+Math.random(), name, updated:'刚刚（复制）'});
   });
   $('modal-copy').classList.remove('open');
   const names = checked.map(id=>AGENT_BY(id).short).join('、');
-  showToast(`已复制到 ${names}（未激活，可在各自库中激活）`);
+  showToast(`已复制到 ${names}（普通已保存提示词，可在各自库中应用）`);
   renderPrompts();
   renderDashboard();
 });
@@ -2028,7 +2259,7 @@ const viewMeta = {
   dashboard:{title:'Dashboard', sub:'7 个 harness 的配置总览', search:false},
   mcp:{title:'MCP 服务', sub:'统一管理 MCP 配置，按 harness 一键开关并写入各自配置文件', search:false},
   skills:{title:'Skills', sub:'中央库安装与分发，支持仓库发现、更新与备份', search:true},
-  prompts:{title:'提示词', sub:'每个 harness 一套提示词库，单条激活写入指令文件', search:false},
+  prompts:{title:'提示词', sub:'当前指令文件与已保存提示词库分层管理', search:false},
   agents:{title:'Harness 管理', sub:'各 harness 的配置落点与目录覆盖', search:false},
   settings:{title:'设置', sub:'数据备份、导入导出与全局选项', search:false},
 };
