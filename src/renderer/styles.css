@@ -186,6 +186,27 @@
   .empty-box h4{font-family:var(--font-display); font-size:15px; color:var(--text-dim); margin-bottom:6px;}
   .empty-box p{font-size:12.5px; margin-bottom:14px;}
 
+.prompt-live-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px 18px; box-shadow:var(--shadow-sm); margin-bottom:14px;}
+.live-head{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;}
+.live-title{font-size:13.5px; font-weight:700;}
+.live-status{font-size:11px; font-weight:600; padding:4px 9px; border-radius:5px; background:var(--surface-3); color:var(--text-dim);}
+.live-status.match{color:var(--on); background:#E6F7EE;}
+.live-status.custom{color:#9A6700; background:#FFF8C5;}
+.live-status.missing{color:var(--danger, #C0392B); background:#FDECEA;}
+.live-mtime{font-size:11px; color:var(--text-faint); margin-left:auto;}
+.live-actions{display:flex; gap:8px; margin-top:12px;}
+.live-preview{margin-top:12px;}
+.live-preview summary{cursor:pointer; font-size:12.5px; color:var(--text-dim);}
+.live-preview pre{margin:8px 0 0; padding:12px; border:1px solid var(--border-soft); border-radius:var(--radius-sm); background:var(--surface-2); max-height:260px; overflow:auto; white-space:pre-wrap; word-break:break-word; font-size:12px; color:var(--text-dim);}
+.saved-header{display:flex; align-items:center; justify-content:space-between; gap:12px; margin:18px 0 12px;}
+.saved-header h4{font-family:var(--font-display); font-size:14px; margin:0;}
+.hidden{display:none !important;}
+.prompt-apply-actions{display:flex; flex-direction:column; gap:8px;}
+.prompt-apply-actions .btn{width:100%;}
+.prompt-apply-actions .btn-danger{background:#D93025; border-color:#D93025; color:#fff;}
+.prompt-apply-actions .btn-danger:hover{background:#B3261E; border-color:#B3261E; color:#fff;}
+.prompt-diff{margin:0; padding:12px; border:1px solid var(--border-soft); border-radius:var(--radius-sm); background:var(--surface-2); max-height:420px; overflow:auto; white-space:pre-wrap; word-break:break-word; font-size:12px; color:var(--text-dim);}
+
   /* ---------- Agents management ---------- */
   .agent-cards-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:14px;}
   .agent-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px; box-shadow:var(--shadow-sm);}

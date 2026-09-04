@@ -141,18 +141,24 @@
         </div>
       </section>
 
-      <!-- ===== Prompts ===== -->
-      <section class="view" id="view-prompts">
-        <div class="prompt-tabs" id="prompt-tabs"></div>
-        <div class="prompt-head">
-          <span class="prompt-file" id="prompt-file"></span>
-          <div class="prompt-head-actions">
-            <button class="btn btn-ghost" id="btn-import-prompts">↓ 从各 harness 导入</button>
-            <button class="btn btn-primary btn-icon" id="btn-add-prompt">+ 新增提示词</button>
-          </div>
-        </div>
-        <div class="prompt-list" id="prompt-list"></div>
-      </section>
+<!-- ===== Prompts ===== -->
+<section class="view" id="view-prompts">
+  <div class="prompt-tabs" id="prompt-tabs"></div>
+  <div class="prompt-head">
+    <span class="prompt-file" id="prompt-file"></span>
+  </div>
+  <div class="prompt-live-card" id="prompt-live-card"></div>
+  <div class="saved-header">
+    <h4>已保存的提示词</h4>
+    <button class="btn btn-primary btn-icon" id="btn-add-prompt">+ 新增提示词</button>
+  </div>
+  <div class="prompt-list" id="prompt-list"></div>
+  <div class="empty-box hidden" id="prompt-saved-empty">
+    <h4>还没有保存的提示词</h4>
+    <p>可将当前内容另存为新提示词，或直接新增一条命名提示词。</p>
+    <button class="btn btn-primary" id="btn-add-prompt-empty">+ 新增提示词</button>
+  </div>
+</section>
 
       <!-- ===== Agents management ===== -->
       <section class="view" id="view-agents">
@@ -415,7 +421,7 @@
       </div>
       <label class="field-label">内容（Markdown）</label>
       <textarea class="field-input" id="pf-content" style="min-height:220px;" placeholder="激活后，该内容将写入当前 harness 的指令文件…"></textarea>
-      <div class="field-hint">保存后条目为未激活状态；在列表中开启开关才会写入指令文件。</div>
+      <div class="field-hint">保存后仅更新提示词库，不会写入指令文件；需要写入时请在列表中点击「应用」。</div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" id="pf-cancel">取消</button>
@@ -430,10 +436,56 @@
     <h3>复制提示词到其他 harness</h3>
     <p class="modal-sub" id="cp-sub"></p>
     <div class="target-list" id="cp-targets"></div>
-    <div class="info-box">ℹ 复制后的条目为<b>未激活</b>状态：不会影响目标 harness 当前激活的提示词与指令文件。同名条目将自动追加序号。</div>
+    <div class="info-box">ℹ 复制后的条目为普通已保存提示词：不会影响目标 harness 当前指令文件。同名条目将自动追加序号。</div>
     <div class="modal-actions">
       <button class="btn btn-ghost" id="cp-cancel">取消</button>
       <button class="btn btn-primary" id="cp-confirm">复制</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 编辑当前内容 Modal ===== -->
+<div class="modal-overlay" id="modal-live-form">
+  <div class="modal modal-lg">
+    <h3>编辑当前内容</h3>
+    <p class="modal-sub" id="live-form-sub"></p>
+    <div class="modal-scroll">
+      <label class="field-label">当前指令文件内容</label>
+      <textarea class="field-input" id="live-editor-content" style="min-height:280px;"></textarea>
+      <div class="field-hint">保存会直接写回指令文件；写入前自动备份，并使用原子写入。</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="live-editor-cancel">取消</button>
+      <button class="btn btn-primary" id="live-editor-save">保存当前内容</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 应用提示词冲突确认 Modal ===== -->
+<div class="modal-overlay" id="modal-apply-prompt">
+  <div class="modal" style="width:480px;">
+    <h3>应用提示词</h3>
+    <p class="modal-sub" id="apply-prompt-message"></p>
+    <div class="prompt-apply-actions">
+      <button class="btn btn-ghost" id="apply-cancel">取消</button>
+      <button class="btn btn-ghost" id="apply-save-first">先保存当前内容为新提示词再应用</button>
+      <button class="btn btn-danger" id="apply-overwrite">直接覆盖</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 提示词对比 Modal ===== -->
+<div class="modal-overlay" id="modal-prompt-compare">
+  <div class="modal modal-lg">
+    <h3 id="prompt-compare-title">对比提示词</h3>
+    <p class="modal-sub" id="prompt-compare-sub"></p>
+    <div class="modal-scroll">
+      <div class="field-label">差异（`-` 当前文件内容，`+` 已保存提示词内容）</div>
+      <pre class="prompt-diff" id="prompt-compare-diff"></pre>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="prompt-compare-close">关闭</button>
+      <button class="btn btn-primary" id="prompt-compare-apply">应用该提示词</button>
     </div>
   </div>
 </div>
