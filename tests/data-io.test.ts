@@ -44,11 +44,11 @@ function sampleSettings() {
 }
 
 describe('buildExportPayload', () => {
-  it('version=1、exportedAt 可注入、data/settings 原样保留', () => {
+  it('version=2、exportedAt 可注入、data/settings 原样保留', () => {
     const now = new Date('2025-01-01T00:00:00.000Z')
     const payload = buildExportPayload(sampleData(), sampleSettings(), now)
 
-    expect(payload.version).toBe(1)
+    expect(payload.version).toBe(2)
     expect(payload.exportedAt).toBe('2025-01-01T00:00:00.000Z')
     expect(payload.data).toEqual(sampleData())
     expect(payload.settings).toEqual(sampleSettings())
@@ -56,31 +56,64 @@ describe('buildExportPayload', () => {
 })
 
 describe('validateBackup', () => {
-  it('合法备份：还原 data/settings', () => {
+  it('合法 v2 备份：还原 data/settings', () => {
     const payload = validateBackup(
       JSON.stringify({
-        version: 1,
+        version: 2,
         exportedAt: '2025-01-01T00:00:00.000Z',
         data: sampleData(),
         settings: sampleSettings()
       })
     )
 
-    expect(payload).toEqual({
+    expect(payload.version).toBe(2)
+    expect(payload.exportedAt).toBe('2025-01-01T00:00:00.000Z')
+    expect(payload.data).toEqual(sampleData())
+    expect(payload.settings).toEqual(sampleSettings())
+  })
+
+  it('合法 v1 备份：忽略旧提示词 enabled 字段并回退 createdAt', () => {
+    const legacyData = {
+      ...sampleData(),
+      prompts: {
+        dsh: [{
+          id: 'p1',
+          name: 'A',
+          desc: 'old',
+          content: 'C',
+          enabled: true,
+          updatedAt: 123
+        }],
+        claude: [], codex: [], gemini: [], grok: [], opencode: [], hermes: []
+      }
+    }
+
+    const payload = validateBackup(JSON.stringify({
       version: 1,
       exportedAt: '2025-01-01T00:00:00.000Z',
-      data: sampleData(),
+      data: legacyData,
       settings: sampleSettings()
-    })
+    }))
+
+
+    expect(payload.version).toBe(1)
+    expect(payload.data.prompts.dsh).toEqual([{
+      id: 'p1',
+      name: 'A',
+      desc: 'old',
+      content: 'C',
+      createdAt: 123,
+      updatedAt: 123
+    }])
   })
 
   it('非 JSON 文本抛错', () => {
     expect(() => validateBackup('{ not json')).toThrow(/不是合法 JSON/)
   })
 
-  it('version 非 1 抛错', () => {
+  it('version 1 与 2 之外抛错', () => {
     expect(() =>
-      validateBackup(JSON.stringify({ version: 2, data: {}, settings: {} }))
+      validateBackup(JSON.stringify({ version: 3, data: {}, settings: {} }))
     ).toThrow(/版本不支持/)
   })
 
@@ -146,6 +179,32 @@ describe('applyImport', () => {
 
     expect(loadStore(dataF)).toEqual(sampleData())
     expect(loadSettings(setF)).toEqual({ ...sampleSettings(), backupBeforeWrite: false })
+  })
+
+  it('导入 v1 备份时不会把旧 enabled 状态写入 data.json', async () => {
+    const dataF = path.join(tmp, 'data.json')
+    const setF = path.join(tmp, 'settings.json')
+    const payload = validateBackup(JSON.stringify({
+      version: 1,
+      data: {
+        version: 1,
+        mcpItems: [],
+        skills: [],
+        prompts: {
+          dsh: [{ id: 'p1', name: 'A', content: 'C', enabled: true, updatedAt: 9 }],
+          claude: [], codex: [], gemini: [], grok: [], opencode: [], hermes: []
+        },
+        skillRepos: []
+      },
+      settings: sampleSettings()
+    }))
+
+
+    await applyImport(payload, dataF, setF)
+
+    const saved = JSON.parse(await fs.readFile(dataF, 'utf8'))
+    expect(saved.prompts.dsh[0]).not.toHaveProperty('enabled')
+    expect(saved.prompts.dsh[0].createdAt).toBe(9)
   })
 })
 
