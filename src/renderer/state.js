@@ -8,7 +8,7 @@ export const state = {
   settings: null,        // getAppInit().settings（G1 起填充，G3 消费）
   agentVersions: null,   // hub.getAgentVersions() 返回的版本探测结果（Dashboard 概览；null=尚未加载）
   agentsDetailed: null,  // hub.getAgentsDetailed() 返回 {agents, resolved}（G3 新增：真实解析路径）
-  promptsByAgent: {},    // hub.listPrompts/savePrompt/enablePrompt/... 返回的每 harness 提示词库（G3 起不再内置 mock）
+  promptsByAgent: {},    // hub.listPrompts/savePrompt/applyPrompt/... 返回的每 harness 提示词库（v2 起不再内置激活状态）
   promptSnapshots: {},   // getPromptSnapshot/saveLivePrompt/applyPrompt 返回的每 harness 快照
   promptFormIntent: null, // { applyAfterSave: boolean } | null
   mcpItems: [],          // IPC listMcp/saveMcp/toggleMcp/... 返回的统一库（不再内置 mock）
