@@ -112,4 +112,5 @@ async function autoRefreshFromHarnesses(){
   if(errors.length > 0){
     showToast('启动自动刷新部分失败：' + errors[0]);
   }
-}\r\ninit();
+}
+init();
