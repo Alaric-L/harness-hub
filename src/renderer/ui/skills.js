@@ -141,7 +141,7 @@ $('btn-skill-import').addEventListener('click', async ()=>{
   }
   btn.disabled = false; btn.textContent = orig;
   renderUnmanaged();
-  $('import-deploy-hint').textContent = importDeployHint(state.settings?.syncMethod || 'symlink');
+  $('import-deploy-hint').textContent = importDeployHint(state.settings?.syncMethod || 'copy');
   $('modal-import-skills').classList.add('open');
 });
 $('import-skills-close').addEventListener('click', ()=> $('modal-import-skills').classList.remove('open'));
@@ -195,7 +195,7 @@ $('import-skills-confirm').addEventListener('click', async ()=>{
     return {dir:s.dir, apps};
   });
   // 二级确认：按当前部署方式告知对 harness 内已有文件的影响（只入库不部署时无此影响）
-  const method = state.settings?.syncMethod || 'symlink';
+  const method = state.settings?.syncMethod || 'copy';
   const targets = [...new Set(items.flatMap(it=>Object.entries(it.apps ?? {}).filter(([,on])=>on).map(([id])=>id)))]
     .map(id=>SKILL_TARGET_BY(id)?.short || id);
   const runImport = async ()=>{

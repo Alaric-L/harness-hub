@@ -570,10 +570,10 @@
           <h4>Skill 同步方式</h4>
           <p class="hint">将中央 Skill 库分发到各 harness skills 目录的方式。</p>
           <div class="radio-row" id="sync-method-row">
-            <!-- auto 模式已收敛：默认 symlink；如需恢复取消注释即可（主进程分支保留） -->
+            <!-- auto 模式已收敛：默认 copy；如需恢复取消注释即可（主进程分支保留） -->
             <!-- <label class="radio-pill active" data-sync="auto"><input type="radio" name="syncm" checked>自动（优先符号链接，失败回退复制）</label> -->
-            <label class="radio-pill active" data-sync="symlink"><input type="radio" name="syncm" checked>仅符号链接</label>
-            <label class="radio-pill" data-sync="copy"><input type="radio" name="syncm">仅复制</label>
+            <label class="radio-pill" data-sync="symlink"><input type="radio" name="syncm">仅符号链接</label>
+            <label class="radio-pill active" data-sync="copy"><input type="radio" name="syncm" checked>仅复制</label>
           </div>
         </div>
         <div class="settings-section">
@@ -1757,7 +1757,7 @@ function renderBackups(){
 
 /* ---- 从 harness 导入 ---- */
 /* 导入部署提示/确认文案（与实现 src/renderer/ui/import-notice.js 保持一致；auto 文案保留备恢复） */
-let SYNC_METHOD = 'symlink';
+let SYNC_METHOD = 'copy';
 const IMPORT_HINTS = {
   symlink: '部署方式：符号链接——在 harness 的 skills 目录创建指向中央库的链接（不复制文件，中央库改动实时生效）；已存在同名目录的位置会被删除并替换为链接，原始文件仅保留在中央库一份。',
   copy: '部署方式：复制——向 harness 的 skills 目录写入中央库的完整副本；已存在同名目录的位置会被整体替换为副本（内容与导入时一致），此后 harness 中的副本与中央库互不联动。',
@@ -1780,7 +1780,7 @@ document.querySelectorAll('#sync-method-row [data-sync]').forEach(pill=>{
 
 $('btn-skill-import').addEventListener('click', ()=>{
   renderUnmanaged();
-  $('import-deploy-hint').textContent = IMPORT_HINTS[SYNC_METHOD] || IMPORT_HINTS.symlink;
+  $('import-deploy-hint').textContent = IMPORT_HINTS[SYNC_METHOD] || IMPORT_HINTS.copy;
   $('modal-import-skills').classList.add('open');
 });
 $('import-skills-close').addEventListener('click', ()=> $('modal-import-skills').classList.remove('open'));

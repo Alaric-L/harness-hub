@@ -97,12 +97,12 @@ describe('saveStore', () => {
 })
 
 describe('loadSettings / saveSettings', () => {
-  it('loadSettings 文件不存在返回默认（无覆盖、syncMethod symlink、备份均 true）', () => {
+  it('loadSettings 文件不存在返回默认（无覆盖、syncMethod copy、备份均 true）', () => {
     const s = loadSettings(path.join(tmp, 'settings.json'))
 
     expect(s).toEqual({
       dirOverrides: {},
-      syncMethod: 'symlink',
+      syncMethod: 'copy',
       backupBeforeWrite: true,
       skillUninstallBackup: true
     })
