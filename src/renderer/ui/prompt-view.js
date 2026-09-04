@@ -57,3 +57,19 @@ export function savedPromptCount(promptsByAgent){
     return n + (Array.isArray(list) ? list.length : 0);
   }, 0);
 }
+
+/** 快照加载失败时的回退快照：live 置为不存在、空内容，saved 列表沿用已缓存数据 */
+export function fallbackPromptSnapshot(agentId, path, prompts){
+  return {
+    prompts: Array.isArray(prompts) ? prompts : [],
+    live: { agentId, path, exists: false, content: '', mtime: null, matchedIds: [] }
+  };
+}
+
+/** 先保存再应用：优先取已记录 savedId，否则取前序 id 集合之外的新条目 */
+export function savedAfterIntent(list, previousIds, intent){
+  if(intent && intent.savedId){
+    return list.find(p => p.id === intent.savedId) || null;
+  }
+  return list.find(p => !previousIds.has(p.id)) || null;
+}

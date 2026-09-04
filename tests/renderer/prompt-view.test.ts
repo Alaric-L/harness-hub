@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest'
 import {
   formatPromptMtime,
   liveStatusText,
+  fallbackPromptSnapshot,
   promptDiffText,
+  savedAfterIntent,
   savedPromptCount
 } from '../../src/renderer/ui/prompt-view.js'
 
@@ -71,5 +73,31 @@ describe('savedPromptCount', () => {
       claude: [prompts[0]],
       codex: undefined
     })).toBe(4)
+  })
+})
+describe('fallbackPromptSnapshot', () => {
+  it('快照加载失败时返回空 live 与已缓存 saved 列表', () => {
+    const snap = fallbackPromptSnapshot('dsh', '/fake/AGENTS.md', prompts)
+    expect(snap.prompts).toEqual(prompts)
+    expect(snap.live).toEqual({
+      agentId: 'dsh', path: '/fake/AGENTS.md', exists: false,
+      content: '', mtime: null, matchedIds: []
+    })
+  })
+})
+
+describe('savedAfterIntent', () => {
+  const list = [
+    { id: 'a', name: 'A' },
+    { id: 'b', name: 'B' }
+  ]
+  const previous = new Set(['a'])
+
+  it('无 savedId 时返回前序集合之外的新条目', () => {
+    expect(savedAfterIntent(list, previous, null)?.id).toBe('b')
+  })
+
+  it('apply 失败重试时返回已记录的 savedId 条目', () => {
+    expect(savedAfterIntent(list, previous, { applyAfterSave: true, savedId: 'a' })?.id).toBe('a')
   })
 })

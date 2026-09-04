@@ -4,7 +4,7 @@ import { icon } from '../icons.js';
 import { $, showToast, askConfirm, esc } from './common.js';
 import { state } from '../state.js';
 import { renderDashboard } from './dashboard.js';
-import { formatPromptMtime, liveStatusText, promptDiffText } from './prompt-view.js';
+import { fallbackPromptSnapshot, formatPromptMtime, liveStatusText, promptDiffText, savedAfterIntent } from './prompt-view.js';
 
 function resolvedOf(agentId){
   const r = state.agentsDetailed && state.agentsDetailed.resolved[agentId];
@@ -230,8 +230,13 @@ export async function renderPrompts(){
   });
 
   const agentId = state.currentPromptAgent;
-  await ensurePromptSnapshot(agentId, true);
-  const promptFile = snapshotOf(agentId).live.path || resolvedOf(agentId);
+  const promptFile = resolvedOf(agentId);
+  try {
+    await ensurePromptSnapshot(agentId, true);
+  } catch (err) {
+    syncSnapshot(fallbackPromptSnapshot(agentId, promptFile, state.promptsByAgent[agentId]));
+    showToast('操作失败：' + err.message);
+  }
   $('prompt-file').textContent = `指令文件 · ${promptFile}`;
 
   renderLiveCard(agentId, promptFile);
@@ -300,10 +305,12 @@ $('pf-save').addEventListener('click', async ()=>{
   try {
     const list = await window.hub.savePrompt(agentId, item);
     state.promptsByAgent[agentId] = list;
+    const saved = savedAfterIntent(list, previousIds, intent);
 
     if(intent?.applyAfterSave){
-      const saved = list.find(p=>!previousIds.has(p.id));
       if(!saved) throw new Error('未找到刚保存的提示词');
+      state.promptEditing = { agentId, id: saved.id };
+      state.promptFormIntent = { applyAfterSave: true, savedId: saved.id };
       syncSnapshot(await window.hub.applyPrompt(agentId, saved.id));
       state.promptFormIntent = null;
       $('modal-prompt-form').classList.remove('open');

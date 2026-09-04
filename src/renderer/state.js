@@ -10,7 +10,7 @@ export const state = {
   agentsDetailed: null,  // hub.getAgentsDetailed() 返回 {agents, resolved}（G3 新增：真实解析路径）
   promptsByAgent: {},    // hub.listPrompts/savePrompt/applyPrompt/... 返回的每 harness 提示词库（v2 起不再内置激活状态）
   promptSnapshots: {},   // getPromptSnapshot/saveLivePrompt/applyPrompt 返回的每 harness 快照
-  promptFormIntent: null, // { applyAfterSave: boolean } | null
+  promptFormIntent: null, // { applyAfterSave: boolean, savedId: string | null } | null
   mcpItems: [],          // IPC listMcp/saveMcp/toggleMcp/... 返回的统一库（不再内置 mock）
   skillsItems: [],       // IPC listSkills/toggleSkill/uninstallSkill/importSkills/... 返回的统一库（G2 起不再内置 mock）
   skillBackups: [],      // IPC listSkillBackups 返回的备份列表
