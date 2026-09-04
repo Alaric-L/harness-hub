@@ -45,11 +45,11 @@ describe('AGENTS 常量', () => {
   it('包含 7 个 harness 且顺序固定 DSH 置顶', () => {
     expect(AGENTS.map((a) => a.id)).toEqual([
       'dsh',
-      'claude',
-      'codex',
-      'gemini',
-      'grok',
       'opencode',
+      'codex',
+      'claude',
+      'grok',
+      'gemini',
       'hermes'
     ])
   })
