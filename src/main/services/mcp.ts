@@ -7,6 +7,7 @@ import path from 'node:path'
 import {
   readJsonMcp,
   removeJsonMcpEntry,
+  specToZcode,
   writeJsonMcpEntry
 } from '../adapters/json'
 import {
@@ -46,7 +47,7 @@ function ctxOf(ctx?: McpCtx): Required<Pick<McpCtx, 'dataFile' | 'settingsFile' 
 }
 
 /**
- * adapter 分发：json -> claude/gemini/opencode（D1 kind 参数）、
+ * adapter 分发：json -> claude/gemini/opencode/zcode（D1 kind 参数）、
  * toml -> codex/grok（D2 flavor）、yaml -> hermes、yaml-patch -> dsh。
  * mcpFormat 只在对应 agent 上出现，kind/flavor 断言安全。
  */
@@ -55,7 +56,7 @@ function adapterFor(agentId: AgentId): McpAdapter {
   if (!agent) throw new Error(`unknown agent id: ${agentId}`)
   switch (agent.mcpFormat) {
     case 'json': {
-      const kind = agentId as 'claude' | 'gemini' | 'opencode'
+      const kind = agentId as 'claude' | 'gemini' | 'opencode' | 'zcode'
       return {
         read: (p) => readJsonMcp(p, kind),
         write: (p, id, spec, b) => writeJsonMcpEntry(p, id, spec, kind, b),
@@ -298,8 +299,11 @@ function previewToml(id: string, spec: McpSpec, flavor: 'codex' | 'grok'): strin
   return `[mcp_servers.${key}]\n${lines.join('\n')}`
 }
 
-/** JSON 预览：claude/gemini 用 mcpServers，opencode 用 mcp */
+/** JSON 预览：claude/gemini 用 mcpServers，opencode 用 mcp，zcode 用 mcp.servers（条目经转换） */
 function previewJson(id: string, spec: McpSpec, agentId: AgentId): string {
+  if (agentId === 'zcode') {
+    return JSON.stringify({ mcp: { servers: { [id]: specToZcode(spec) } } }, null, 2)
+  }
   const key = agentId === 'opencode' ? 'mcp' : 'mcpServers'
   return JSON.stringify({ [key]: { [id]: spec } }, null, 2)
 }

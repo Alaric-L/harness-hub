@@ -249,6 +249,7 @@ describe('toggleMcp 开启', () => {
     await toggleMcp('tavily', 'grok', true, ctx)
     await toggleMcp('dbx', 'opencode', true, ctx)
     await toggleMcp('dbx', 'hermes', true, ctx)
+    await toggleMcp('tavily', 'zcode', true, ctx)
 
     // claude json：mcpServers 含 dbx；playwright 与 projects 键保留
     const claude = JSON.parse(await fs.readFile(pathOf('claude'), 'utf8'))
@@ -293,11 +294,20 @@ describe('toggleMcp 开启', () => {
       enabled: true
     })
 
+    // zcode json：mcp.servers.tavily（远程条目 type+url）；plugins 键与 memory 条目保留
+    const zcode = JSON.parse(await fs.readFile(pathOf('zcode'), 'utf8'))
+    expect(zcode.mcp.servers.tavily).toEqual({
+      type: 'http',
+      url: 'https://mcp.example.com/tavily?key=testKey'
+    })
+    expect(zcode.mcp.servers.memory).toBeDefined()
+    expect(zcode.plugins).toBeDefined()
+
     // store apps 反映所有开关
     const items = await currentItems()
     const tv = items.find((i) => i.id === 'tavily')!
     const db = items.find((i) => i.id === 'dbx')!
-    expect(tv.apps).toEqual({ dsh: true, codex: true, grok: true })
+    expect(tv.apps).toEqual({ dsh: true, codex: true, grok: true, zcode: true })
     expect(db.apps).toEqual({ claude: true, gemini: true, opencode: true, hermes: true })
   })
 })
@@ -305,11 +315,11 @@ describe('toggleMcp 开启', () => {
 describe('toggleMcp 关闭', () => {
   it('off：从启用文件移除条目，其他内容保留', async () => {
     await seed([TAVILY])
-    for (const agent of ['dsh', 'claude', 'codex', 'hermes'] as AgentId[]) {
+    for (const agent of ['dsh', 'claude', 'codex', 'hermes', 'zcode'] as AgentId[]) {
       await toggleMcp('tavily', agent, true, ctx)
     }
 
-    for (const agent of ['dsh', 'claude', 'codex', 'hermes'] as AgentId[]) {
+    for (const agent of ['dsh', 'claude', 'codex', 'hermes', 'zcode'] as AgentId[]) {
       await toggleMcp('tavily', agent, false, ctx)
     }
 
@@ -339,6 +349,12 @@ describe('toggleMcp 关闭', () => {
     expect(hermes.mcp_servers.filesystem).toBeDefined()
     expect(hermes.mcp_servers.docker).toBeDefined()
     expect(hermes.provider).toBe('anthropic')
+
+    // zcode json：条目移除、memory 条目与 plugins 键保留
+    const zcode = JSON.parse(await fs.readFile(pathOf('zcode'), 'utf8'))
+    expect(zcode.mcp.servers.tavily).toBeUndefined()
+    expect(zcode.mcp.servers.memory).toBeDefined()
+    expect(zcode.plugins).toBeDefined()
 
     // store apps 已清空
     const items = await currentItems()
@@ -490,6 +506,18 @@ args = ["-y", "weather-mcp"]
   }
 }
 `,
+      zcode: `{
+  "mcp": {
+    "servers": {
+      "vision": {
+        "command": "npx",
+        "args": ["-y", "zai-mcp-server"],
+        "enable": false
+      }
+    }
+  }
+}
+`,
       hermes: `mcp_servers:
   docker:
     command: npx
@@ -517,6 +545,7 @@ args = ["-y", "weather-mcp"]
       'fetch',
       'filesystem',
       'github',
+      'vision',
       'weather'
     ])
     expect(res.marked.map((i) => i.id).sort()).toEqual(['github', 'tavily'])
@@ -531,6 +560,7 @@ args = ["-y", "weather-mcp"]
     expect(items.find((i) => i.id === 'filesystem')?.apps).toEqual({ gemini: true })
     expect(items.find((i) => i.id === 'weather')?.apps).toEqual({ grok: true })
     expect(items.find((i) => i.id === 'docker')?.apps).toEqual({ hermes: true })
+    expect(items.find((i) => i.id === 'vision')?.apps).toEqual({ zcode: true })
 
     // 各文件逐字节不变（仅标记，不回写）
     for (const [id, content] of Object.entries(before)) {
@@ -555,6 +585,10 @@ describe('previewMcp', () => {
 
     const yamlPreview = await previewMcp('dbx', 'hermes', ctx)
     expect(yamlPreview).toContain('mcp_servers:')
+
+    const zcodePreview = await previewMcp('dbx', 'zcode', ctx)
+    expect(zcodePreview).toContain('"servers"')
+    expect(zcodePreview).toContain('"command": "npx"')
   })
 })
 
