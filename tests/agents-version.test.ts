@@ -1,11 +1,25 @@
-// tests/agents-version.test.ts —— Dashboard 版本探测的纯函数（extractVersion / parseNpmLatestResponse / 元数据）
+// tests/agents-version.test.ts —— Dashboard 版本探测的纯函数（extractVersion / parseNpmLatestResponse / probeZcode / 元数据）
 // 语义对齐 cc-switch commands/misc.rs：VERSION_RE:1013 提取、npm dist-tags.latest、npm_install_command_for:509。
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import fs from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
 import {
   AGENT_TOOL_META,
   extractVersion,
-  parseNpmLatestResponse
+  parseNpmLatestResponse,
+  probeZcode
 } from '../src/main/services/agents-version'
+
+let tmp: string
+
+beforeEach(async () => {
+  tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'agents-ver-'))
+})
+
+afterEach(async () => {
+  await fs.rm(tmp, { recursive: true, force: true })
+})
 
 describe('extractVersion', () => {
   it('从标准 CLI 输出提取版本号', () => {
@@ -41,13 +55,31 @@ describe('parseNpmLatestResponse', () => {
 })
 
 describe('AGENT_TOOL_META', () => {
-  it('覆盖全部 7 个 agent 且 dsh 安装命令符合产品要求', () => {
+  it('覆盖全部 8 个 agent：CLI 型含 npm 包与安装命令，zcode 为桌面应用（null）', () => {
     for (const id of ['dsh', 'claude', 'codex', 'gemini', 'grok', 'opencode', 'hermes'] as const) {
       expect(AGENT_TOOL_META[id]).toBeDefined()
       expect(AGENT_TOOL_META[id].bin.length).toBeGreaterThan(0)
-      expect(AGENT_TOOL_META[id].npm.length).toBeGreaterThan(0)
+      expect(AGENT_TOOL_META[id].npm!.length).toBeGreaterThan(0)
       expect(AGENT_TOOL_META[id].install).toContain('npm')
     }
+    expect(AGENT_TOOL_META.zcode).toEqual({ bin: 'zcode', npm: null, install: null })
     expect(AGENT_TOOL_META.dsh.install).toBe('npm install -g @deepseek-ai/dsh')
+  })
+})
+
+describe('probeZcode', () => {
+  it('配置目录存在 -> installed: true、version: null、无错误', async () => {
+    const root = path.join(tmp, '.zcode')
+    await fs.mkdir(root, { recursive: true })
+    expect(probeZcode(root)).toEqual({ version: null, error: null, installed: true })
+  })
+
+  it('配置目录缺失 -> installed: false、错误信息含 ZCode 与路径', () => {
+    const root = path.join(tmp, 'nope')
+    const res = probeZcode(root)
+    expect(res.installed).toBe(false)
+    expect(res.version).toBeNull()
+    expect(res.error).toContain('ZCode')
+    expect(res.error).toContain(root)
   })
 })
