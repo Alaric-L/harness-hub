@@ -443,7 +443,7 @@ describe('deleteMcp', () => {
 })
 
 describe('importMcpFromHarnesses', () => {
-  /** 覆盖 7 个 fixture 为导入专用内容（每条目 id 可控） */
+  /** 覆盖 8 个 fixture 为导入专用内容（每条目 id 可控） */
   async function writeImportFixtures(): Promise<Record<AgentId, string>> {
     const files: Record<AgentId, string> = {
       dsh: `# patch layer

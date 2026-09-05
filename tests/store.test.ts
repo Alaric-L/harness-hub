@@ -53,7 +53,7 @@ function sampleData() {
 }
 
 describe('loadStore', () => {
-  it('文件不存在返回默认结构（version:1、空数组、prompts 七键空数组）', () => {
+  it('文件不存在返回默认结构（version:1、空数组、prompts 八键空数组）', () => {
     const data = loadStore(path.join(tmp, 'data.json'))
 
     expect(data).toEqual(defaultData())

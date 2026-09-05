@@ -149,7 +149,7 @@ describe('resolveAgentPaths 默认（无覆盖）', () => {
     })
   })
 
-  it('codex / gemini / grok / opencode / hermes 默认落点', () => {
+  it('codex / gemini / grok / opencode / zcode / hermes 默认落点', () => {
     expect(resolveAgentPaths('codex', {}, WIN_ENV)).toEqual({
       root: path.join(HOME, '.codex'),
       mcpPath: path.join(HOME, '.codex', 'config.toml'),

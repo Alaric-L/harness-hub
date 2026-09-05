@@ -83,7 +83,7 @@ export interface ProbeResult {
   installed: boolean
 }
 
-/** 执行 <bin> --version，返回 (version, error)；未安装 / 无法解析时 version=null */
+/** 执行 <bin> --version，返回 (version, error, installed)；未安装 / 无法解析时 version=null */
 export async function probeLocalVersion(bin: string): Promise<ProbeResult> {
   try {
     const { stdout, stderr } = await runCommand(`${bin} --version`, PROBE_TIMEOUT_MS)

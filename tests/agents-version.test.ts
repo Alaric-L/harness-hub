@@ -7,6 +7,7 @@ import path from 'node:path'
 import {
   AGENT_TOOL_META,
   extractVersion,
+  installAgent,
   parseNpmLatestResponse,
   probeZcode
 } from '../src/main/services/agents-version'
@@ -81,5 +82,11 @@ describe('probeZcode', () => {
     expect(res.version).toBeNull()
     expect(res.error).toContain('ZCode')
     expect(res.error).toContain(root)
+  })
+})
+
+describe('installAgent zcode 拦截', () => {
+  it('zcode 无安装渠道：抛可读错误（官网引导），不执行任何命令', async () => {
+    await expect(installAgent('zcode')).rejects.toThrow(/ZCode 为桌面应用/)
   })
 })
