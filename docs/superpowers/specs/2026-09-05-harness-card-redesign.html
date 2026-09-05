@@ -1,0 +1,49 @@
+<h2 class="sr-only">三种 Harness 卡片状态示例：CLI 已检测到可更新、已配置但未检测到 CLI、完全未配置</h2>
+<div style="display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px;">
+
+  <div style="background:var(--surface-2); border:0.5px solid var(--border); border-radius:12px; padding:1rem 1.25rem; display:flex; flex-direction:column; gap:10px;">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <div style="width:32px; height:32px; border-radius:8px; background:var(--bg-accent); color:var(--text-accent); display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:500; flex-shrink:0;">OC</div>
+      <div style="font-size:14px; font-weight:500; flex:1;">OpenCode</div>
+      <span style="font-size:11px; font-weight:500; padding:2px 8px; border-radius:999px; background:var(--bg-success); color:var(--text-success); white-space:nowrap;">已配置</span>
+    </div>
+    <div style="border-top:0.5px solid var(--border); padding-top:10px; display:flex; flex-direction:column; gap:4px;">
+      <div style="font-size:11px; color:var(--text-muted);">CLI 版本</div>
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+        <span style="font-family:var(--font-mono); font-size:12px; color:var(--text-secondary);">0.18.4 → 0.19.1</span>
+        <span style="font-size:11px; font-weight:500; padding:2px 8px; border-radius:999px; background:var(--bg-warning); color:var(--text-warning); white-space:nowrap;">可更新</span>
+      </div>
+    </div>
+    <button style="align-self:flex-end; font-size:12px; padding:6px 12px;">更新 CLI</button>
+  </div>
+
+  <div style="background:var(--surface-2); border:0.5px solid var(--border); border-radius:12px; padding:1rem 1.25rem; display:flex; flex-direction:column; gap:10px;">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <div style="width:32px; height:32px; border-radius:8px; background:var(--bg-accent); color:var(--text-accent); display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:500; flex-shrink:0;">CC</div>
+      <div style="font-size:14px; font-weight:500; flex:1;">Claude Code</div>
+      <span style="font-size:11px; font-weight:500; padding:2px 8px; border-radius:999px; background:var(--bg-success); color:var(--text-success); white-space:nowrap;">已配置</span>
+    </div>
+    <div style="border-top:0.5px solid var(--border); padding-top:10px; display:flex; flex-direction:column; gap:4px;">
+      <div style="font-size:11px; color:var(--text-muted);">CLI 版本</div>
+      <div style="font-size:12px; color:var(--text-muted); line-height:1.5;">
+        <i class="ti ti-info-circle" style="font-size:13px; vertical-align:-2px; margin-right:4px;" aria-hidden="true"></i>
+        未检测到本地 CLI，可能通过 IDE 插件或桌面客户端使用
+      </div>
+    </div>
+    <button style="align-self:flex-end; font-size:12px; padding:6px 12px;">查看安装方式<i class="ti ti-external-link" style="font-size:13px; margin-left:4px;" aria-hidden="true"></i></button>
+  </div>
+
+  <div style="background:var(--surface-2); border:0.5px solid var(--border); border-radius:12px; padding:1rem 1.25rem; display:flex; flex-direction:column; gap:10px;">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <div style="width:32px; height:32px; border-radius:8px; background:var(--fill-control); color:var(--text-secondary); display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:500; flex-shrink:0;">HE</div>
+      <div style="font-size:14px; font-weight:500; flex:1;">Hermes</div>
+      <span style="font-size:11px; font-weight:500; padding:2px 8px; border-radius:999px; background:var(--fill-control); color:var(--text-secondary); white-space:nowrap;">未配置</span>
+    </div>
+    <div style="border-top:0.5px solid var(--border); padding-top:10px; display:flex; flex-direction:column; gap:4px;">
+      <div style="font-size:11px; color:var(--text-muted);">配置目录</div>
+      <div style="font-size:12px; color:var(--text-muted); font-family:var(--font-mono);">~/.hermes 未找到</div>
+    </div>
+    <button style="align-self:flex-end; font-size:12px; padding:6px 12px; border-color:var(--border-strong);">查看安装选项</button>
+  </div>
+
+</div>
