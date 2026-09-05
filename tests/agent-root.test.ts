@@ -13,7 +13,7 @@ import { bulkToggleMcp, saveMcp, toggleMcp, type McpCtx } from '../src/main/serv
 import { deploySkill, uninstallSkill, type SkillCtx } from '../src/main/services/skills'
 import { importSkills, restoreSkillBackup } from '../src/main/services/skill-io'
 
-const AGENT_IDS: AgentId[] = ['dsh', 'claude', 'codex', 'gemini', 'grok', 'opencode', 'hermes']
+const AGENT_IDS: AgentId[] = ['dsh', 'claude', 'codex', 'gemini', 'grok', 'opencode', 'zcode', 'hermes']
 
 /** 覆盖后各 agent 的 MCP 配置文件相对路径（对齐 resolveAgentPaths 语义） */
 const MCP_FILE_NAME: Record<AgentId, string> = {
@@ -23,6 +23,7 @@ const MCP_FILE_NAME: Record<AgentId, string> = {
   gemini: 'settings.json',
   grok: 'config.toml',
   opencode: 'opencode.json',
+  zcode: 'cli/config.json',
   hermes: 'config.yaml'
 }
 

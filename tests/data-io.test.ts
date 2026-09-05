@@ -29,7 +29,7 @@ function sampleData() {
       { id: 'm1', name: 'tavily', desc: 'web', spec: { type: 'http', url: 'https://x' }, apps: { dsh: true } }
     ],
     skills: [],
-    prompts: { dsh: [], claude: [], codex: [], gemini: [], grok: [], opencode: [], hermes: [] },
+    prompts: { dsh: [], claude: [], codex: [], gemini: [], grok: [], opencode: [], zcode: [], hermes: [] },
     skillRepos: []
   } as const
 }

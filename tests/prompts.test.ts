@@ -14,7 +14,7 @@ import {
   type PromptCtx
 } from '../src/main/services/prompts'
 
-const AGENT_IDS: AgentId[] = ['dsh', 'claude', 'codex', 'gemini', 'grok', 'opencode', 'hermes']
+const AGENT_IDS: AgentId[] = ['dsh', 'claude', 'codex', 'gemini', 'grok', 'opencode', 'zcode', 'hermes']
 
 function promptFileName(agentId: AgentId): string {
   const tpl = AGENTS.find((a) => a.id === agentId)!.promptFile

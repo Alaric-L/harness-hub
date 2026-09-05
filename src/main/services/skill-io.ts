@@ -312,7 +312,7 @@ export function listUnmanagedSkills(ctx?: SkillCtx): UnmanagedSkill[] {
   return out
 }
 
-/** 在 7 个 harness skillsDir 中定位 dir 的源路径（第一个命中；无则 null） */
+/** 在 8 个 harness skillsDir 中定位 dir 的源路径（第一个命中；无则 null） */
 async function findSourceDir(
   dir: string,
   overrides: Partial<Record<AgentId, string>>,

@@ -27,7 +27,7 @@ import {
   validateRepoRef
 } from '../src/main/services/discovery'
 
-const AGENT_IDS: AgentId[] = ['dsh', 'claude', 'codex', 'gemini', 'grok', 'opencode', 'hermes']
+const AGENT_IDS: AgentId[] = ['dsh', 'claude', 'codex', 'gemini', 'grok', 'opencode', 'zcode', 'hermes']
 
 let tmp: string
 let homes: string
@@ -76,7 +76,7 @@ async function seed(items: SkillInstalled[]): Promise<void> {
     version: 1,
     mcpItems: [],
     skills: items,
-    prompts: { dsh: [], claude: [], codex: [], gemini: [], grok: [], opencode: [], hermes: [] },
+    prompts: { dsh: [], claude: [], codex: [], gemini: [], grok: [], opencode: [], zcode: [], hermes: [] },
     skillRepos: []
   })
 }

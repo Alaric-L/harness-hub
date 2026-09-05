@@ -1,5 +1,5 @@
 // tests/services/mcp.test.ts —— D4: MCP service 全业务流（库 CRUD、单开关、批量、导入合并、预览）
-// 用临时目录构造 7 个 harness 假家目录：settings.dirOverrides 指向 fixture，
+// 用临时目录构造 8 个 harness 假家目录：settings.dirOverrides 指向 fixture，
 // 各格式配置文件预置真实样例（claude json 含 projects 键、codex toml 含注释与其它表）。
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import fs from 'node:fs/promises'

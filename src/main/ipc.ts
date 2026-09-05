@@ -70,7 +70,7 @@ function errMessage(err: unknown): string {
 
 ipcMain.handle('hub:getAppInit', async () => {
   try {
-    // loadSettings 为同步函数，直接调用（store.ts）；返回 7 agents + settings
+    // loadSettings 为同步函数，直接调用（store.ts）；返回 8 agents + settings
     return { agents: AGENTS, settings: loadSettings(settingsFile()) }
   } catch (err) {
     throw new Error(errMessage(err))
