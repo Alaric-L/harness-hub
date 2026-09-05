@@ -14,9 +14,9 @@ afterEach(async () => {
   await fs.rm(tmp, { recursive: true, force: true })
 })
 
-const AGENT_IDS = ['dsh', 'claude', 'codex', 'gemini', 'grok', 'opencode', 'hermes'] as const
+const AGENT_IDS = ['dsh', 'claude', 'codex', 'gemini', 'grok', 'opencode', 'zcode', 'hermes'] as const
 
-/** prompts 七键空数组（与全局约束统一数据模型一致） */
+/** prompts 八键空数组（与全局约束统一数据模型一致） */
 function emptyPrompts(): Record<string, unknown[]> {
   const prompts: Record<string, unknown[]> = {}
   for (const id of AGENT_IDS) prompts[id] = []

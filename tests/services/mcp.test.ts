@@ -20,7 +20,7 @@ import {
   type McpCtx
 } from '../../src/main/services/mcp'
 
-const AGENT_IDS: AgentId[] = ['dsh', 'claude', 'codex', 'gemini', 'grok', 'opencode', 'hermes']
+const AGENT_IDS: AgentId[] = ['dsh', 'claude', 'codex', 'gemini', 'grok', 'opencode', 'zcode', 'hermes']
 
 /** 覆盖后各 agent 的 MCP 配置文件相对路径（对齐 resolveAgentPaths 语义） */
 const MCP_FILE_NAME: Record<AgentId, string> = {
@@ -30,6 +30,7 @@ const MCP_FILE_NAME: Record<AgentId, string> = {
   gemini: 'settings.json',
   grok: 'config.toml',
   opencode: 'opencode.json',
+  zcode: 'cli/config.json',
   hermes: 'config.yaml'
 }
 
@@ -162,6 +163,23 @@ args = ["-y", "weather-mcp"]
       "type": "local",
       "command": ["npx", "-y", "@playwright/mcp@latest"],
       "enabled": true
+    }
+  }
+}
+`,
+  zcode: `{
+  "plugins": {
+    "enabledPlugins": {
+      "superpowers@claude-plugins-official": true
+    }
+  },
+  "mcp": {
+    "servers": {
+      "memory": {
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-memory"],
+        "env": {}
+      }
     }
   }
 }

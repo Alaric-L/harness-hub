@@ -1,4 +1,4 @@
-// src/main/paths.ts —— 全项目路径解析的唯一来源（数据根目录 + 7 harness 落点 + 目录覆盖）
+// src/main/paths.ts —— 全项目路径解析的唯一来源（数据根目录 + 8 harness 落点 + 目录覆盖）
 import path from 'node:path'
 import type { AgentId, AgentInfo, SkillTargetId } from './types'
 
@@ -46,7 +46,7 @@ export function settingsFile(env: HomeEnv = process.env): string {
 }
 
 /**
- * 7 harness 元信息（全局约束第 9 条，与原型 766-788 行一致）。
+ * 8 harness 元信息（全局约束第 9 条，与原型 766-788 行一致）。
  * dir/mcpPath/skillsDir/promptFile 存「~ 风格模板」，渲染层展示用；
  * 实际绝对路径经 resolveAgentPaths 计算。
  * 顺序固定 DSH 置顶。
@@ -58,6 +58,9 @@ export const AGENTS: AgentInfo[] = [
   { id: 'opencode', name: 'OpenCode', short: 'OpenCode', dir: '~/.config/opencode',
     mcpPath: '~/.config/opencode/opencode.json', mcpFormat: 'json',
     skillsDir: '~/.config/opencode/skills', promptFile: '~/.config/opencode/AGENTS.md' },
+  { id: 'zcode', name: 'ZCode', short: 'ZCode', dir: '~/.zcode',
+    mcpPath: '~/.zcode/cli/config.json', mcpFormat: 'json',
+    skillsDir: '~/.zcode/skills', promptFile: '~/.zcode/AGENTS.md' },
   { id: 'codex', name: 'Codex', short: 'Codex', dir: '~/.codex',
     mcpPath: '~/.codex/config.toml', mcpFormat: 'toml',
     skillsDir: '~/.codex/skills', promptFile: '~/.codex/AGENTS.md' },

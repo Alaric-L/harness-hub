@@ -30,6 +30,7 @@ function defaultStore(): StoreData {
       gemini: [],
       grok: [],
       opencode: [],
+      zcode: [],
       hermes: []
     },
     skillRepos: []

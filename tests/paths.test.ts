@@ -42,10 +42,11 @@ describe('dataRoot 与数据目录拼接', () => {
 })
 
 describe('AGENTS 常量', () => {
-  it('包含 7 个 harness 且顺序固定 DSH 置顶', () => {
+  it('包含 8 个 harness 且顺序固定 DSH 置顶', () => {
     expect(AGENTS.map((a) => a.id)).toEqual([
       'dsh',
       'opencode',
+      'zcode',
       'codex',
       'claude',
       'grok',
@@ -101,6 +102,13 @@ describe('AGENTS 常量', () => {
         skillsDir: '~/.config/opencode/skills',
         promptFile: '~/.config/opencode/AGENTS.md'
       },
+      zcode: {
+        dir: '~/.zcode',
+        mcpPath: '~/.zcode/cli/config.json',
+        mcpFormat: 'json',
+        skillsDir: '~/.zcode/skills',
+        promptFile: '~/.zcode/AGENTS.md'
+      },
       hermes: {
         dir: '~/.hermes',
         mcpPath: '~/.hermes/config.yaml',
@@ -109,7 +117,7 @@ describe('AGENTS 常量', () => {
         promptFile: '~/.hermes/SOUL.md'
       }
     }
-    expect(AGENTS).toHaveLength(7)
+    expect(AGENTS).toHaveLength(8)
     for (const a of AGENTS) {
       expect({
         dir: a.dir,
@@ -172,6 +180,12 @@ describe('resolveAgentPaths 默认（无覆盖）', () => {
       skillsDir: path.join(HOME, '.hermes', 'skills'),
       promptFile: path.join(HOME, '.hermes', 'SOUL.md')
     })
+    expect(resolveAgentPaths('zcode', {}, WIN_ENV)).toEqual({
+      root: path.join(HOME, '.zcode'),
+      mcpPath: path.join(HOME, '.zcode', 'cli', 'config.json'),
+      skillsDir: path.join(HOME, '.zcode', 'skills'),
+      promptFile: path.join(HOME, '.zcode', 'AGENTS.md')
+    })
   })
 })
 
@@ -205,6 +219,14 @@ describe('resolveAgentPaths 目录覆盖', () => {
     expect(resolveAgentPaths('dsh', overrides, WIN_ENV).mcpPath).toBe(
       path.join('D:\\x', 'profiles', 'web', 'cordis.patch.yml')
     )
+  })
+
+  it('zcode 覆盖 D:\\z -> MCP 落点 = <覆盖>/cli/config.json（相对结构保留，无特例）', () => {
+    const o = resolveAgentPaths('zcode', { zcode: 'D:\\z' }, WIN_ENV)
+    expect(o.root).toBe('D:\\z')
+    expect(o.mcpPath).toBe(path.join('D:\\z', 'cli', 'config.json'))
+    expect(o.skillsDir).toBe(path.join('D:\\z', 'skills'))
+    expect(o.promptFile).toBe(path.join('D:\\z', 'AGENTS.md'))
   })
 })
 

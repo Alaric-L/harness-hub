@@ -1,6 +1,6 @@
 // src/main/types.ts —— 全项目共用
-export type AgentId = 'dsh'|'claude'|'codex'|'gemini'|'grok'|'opencode'|'hermes';
-/** Skills 部署目标：7 个 harness，或 Agent Skills 共享目录（~/.agents/skills） */
+export type AgentId = 'dsh'|'claude'|'codex'|'gemini'|'grok'|'opencode'|'zcode'|'hermes';
+/** Skills 部署目标：8 个 harness，或 Agent Skills 共享目录（~/.agents/skills） */
 export type SkillTargetId = AgentId | 'shared';
 export type McpFormat = 'yaml-patch'|'json'|'toml'|'yaml';
 
