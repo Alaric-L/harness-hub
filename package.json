@@ -1,7 +1,7 @@
 {
   "name": "harness-hub",
   "version": "0.1.0",
-  "description": "HarnessHub — MCP / Skills / Prompt manager for 7 AI coding harnesses",
+  "description": "HarnessHub — MCP / Skills / Prompt manager for 8 AI coding harnesses",
   "type": "commonjs",
   "main": "./out/main/index.js",
   "author": "HarnessHub",
