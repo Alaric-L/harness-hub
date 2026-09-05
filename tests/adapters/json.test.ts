@@ -1,4 +1,4 @@
-// tests/adapters/json.test.ts —— D1: claude/gemini/opencode JSON MCP adapters
+// tests/adapters/json.test.ts —— D1: claude/gemini/opencode/zcode JSON MCP adapters
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import fs from 'node:fs/promises'
 import os from 'node:os'
@@ -254,5 +254,102 @@ describe('opencode（mcp 键，local/remote 双向转换）', () => {
     expect(await readJsonMcp(file, 'opencode')).toEqual({
       b: { type: 'sse', url: httpSpec.url, headers: httpSpec.headers }
     })
+  })
+})
+
+describe('zcode（mcp.servers 嵌套键，stdio/远程双向转换）', () => {
+  it('读取：stdio/远程条目 -> 统一 spec（忽略 enable 字段），plugins 等无关键不影响', async () => {
+    const file = path.join(tmp, 'cli', 'config.json')
+    await fs.mkdir(path.dirname(file), { recursive: true })
+    await fs.writeFile(
+      file,
+      JSON.stringify({
+        plugins: { enabledPlugins: { demo: true } },
+        mcp: {
+          servers: {
+            memory: { command: 'npx', args: ['-y', '@modelcontextprotocol/server-memory'], env: { K: 'V' }, enable: false },
+            vision: { type: 'http', url: 'https://mcp.example.com/vision', headers: { Authorization: 'Bearer t' } }
+          }
+        }
+      }),
+      'utf8'
+    )
+    expect(await readJsonMcp(file, 'zcode')).toEqual({
+      memory: {
+        type: 'stdio',
+        command: 'npx',
+        args: ['-y', '@modelcontextprotocol/server-memory'],
+        env: { K: 'V' }
+      },
+      vision: {
+        type: 'http',
+        url: 'https://mcp.example.com/vision',
+        headers: { Authorization: 'Bearer t' }
+      }
+    })
+  })
+
+  it('文件不存在返回 {}；mcp 存在但 servers 缺失返回 {}', async () => {
+    expect(await readJsonMcp(path.join(tmp, 'none', 'config.json'), 'zcode')).toEqual({})
+    const file = path.join(tmp, 'mcp-no-servers.json')
+    await fs.writeFile(file, JSON.stringify({ mcp: {} }), 'utf8')
+    expect(await readJsonMcp(file, 'zcode')).toEqual({})
+  })
+
+  it('写入 stdio：落 mcp.servers.<id>（无 type / enable 字段），plugins 等顶层键保留', async () => {
+    const file = path.join(tmp, 'zcode-config.json')
+    await fs.writeFile(file, JSON.stringify({ plugins: { a: 1 } }), 'utf8')
+    await writeJsonMcpEntry(file, 'memory', stdioSpec, 'zcode', path.join(tmp, 'backups'))
+    const raw = await readRaw(file)
+    expect((raw as { mcp: { servers: Record<string, unknown> } }).mcp.servers.memory).toEqual({
+      command: 'npx',
+      args: ['-y', 'filesystem'],
+      env: { FOO: 'bar' }
+    })
+    expect(raw['plugins']).toEqual({ a: 1 })
+  })
+
+  it('写入 http/sse：条目含 type + url + headers', async () => {
+    const file = path.join(tmp, 'zcode-http.json')
+    await writeJsonMcpEntry(file, 'tavily', httpSpec, 'zcode', path.join(tmp, 'backups'))
+    const raw = await readRaw(file)
+    expect((raw as { mcp: { servers: Record<string, unknown> } }).mcp.servers.tavily).toEqual({
+      type: 'http',
+      url: httpSpec.url,
+      headers: { Authorization: 'Bearer token' }
+    })
+  })
+
+  it('往返：stdio 无损还原；type=sse 读取为 sse', async () => {
+    const file = path.join(tmp, 'zcode-roundtrip.json')
+    await writeJsonMcpEntry(file, 'a', stdioSpec, 'zcode', path.join(tmp, 'backups'))
+    await writeJsonMcpEntry(file, 'b', { type: 'sse', url: 'https://s.example/sse' }, 'zcode', path.join(tmp, 'backups'))
+    const read = await readJsonMcp(file, 'zcode')
+    expect(read.a).toEqual(stdioSpec)
+    expect(read.b).toEqual({ type: 'sse', url: 'https://s.example/sse' })
+  })
+
+  it('覆盖与删除：条目替换 / 条目移除，其余条目与键保留', async () => {
+    const file = path.join(tmp, 'zcode-crud.json')
+    const backupDir = path.join(tmp, 'backups')
+    await writeJsonMcpEntry(file, 'a', stdioSpec, 'zcode', backupDir)
+    await writeJsonMcpEntry(file, 'b', httpSpec, 'zcode', backupDir)
+    await writeJsonMcpEntry(file, 'a', { type: 'stdio', command: 'uvx' }, 'zcode', backupDir)
+    let read = await readJsonMcp(file, 'zcode')
+    expect(read.a).toEqual({ type: 'stdio', command: 'uvx' })
+    expect(read.b).toEqual(httpSpec)
+
+    await removeJsonMcpEntry(file, 'a', 'zcode', backupDir)
+    read = await readJsonMcp(file, 'zcode')
+    expect(read.a).toBeUndefined()
+    expect(read.b).toEqual(httpSpec)
+  })
+
+  it('mcp 键为非对象时写入抛错（宁可不改不破坏）', async () => {
+    const file = path.join(tmp, 'zcode-bad.json')
+    await fs.writeFile(file, JSON.stringify({ mcp: 'oops' }), 'utf8')
+    await expect(
+      writeJsonMcpEntry(file, 'x', stdioSpec, 'zcode', path.join(tmp, 'backups'))
+    ).rejects.toThrow(/mcp/)
   })
 })
