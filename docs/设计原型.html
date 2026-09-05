@@ -339,21 +339,24 @@
   .mini-agent-card .m-name{font-size:14px; font-weight:600;}
   .mini-agent-card .m-meta{font-size:12px; color:var(--text-faint); margin-top:4px; font-family:var(--font-mono);}
 
-  /* Dashboard 概览：版本卡片（对齐 cc-switch 本地环境检查卡片） */
-  .agent-ver-card{border:1px solid var(--border-soft); border-radius:var(--radius); padding:16px 18px; background:var(--surface-2); display:flex; flex-direction:column; gap:8px;}
+  /* Dashboard 概览：状态卡片（主徽标=配置检测，次要区=CLI 版本信息；视觉参考 specs/2026-09-05-harness-card-redesign.html） */
+  .agent-ver-card{border:1px solid var(--border-soft); border-radius:var(--radius); padding:16px 20px; background:var(--surface-2); display:flex; flex-direction:column; gap:10px;}
   .avc-head{display:flex; align-items:center; gap:10px;}
   .avc-name{font-size:13.5px; font-weight:600; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .avc-badge{font-size:10px; font-weight:600; padding:2px 8px; border-radius:10px; flex-shrink:0;}
   .avc-badge.ok{color:var(--on); background:#E6F7EE;}
   .avc-badge.upd{color:#966A0B; background:#FEF6E7; border:1px solid #F3DFAE;}
-  .avc-badge.warn{color:var(--danger); background:#FDECEC;}
+  .avc-badge.off{color:var(--text-dim); background:var(--surface-3);}
   .avc-badge.loading{color:var(--text-faint); background:var(--surface-3);}
-  .avc-row{display:flex; justify-content:space-between; align-items:center; gap:10px; font-size:12px;}
-  .avc-row span{color:var(--text-faint);}
-  .avc-row .mono{font-family:var(--font-mono); font-size:11.5px; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .avc-sub{border-top:1px solid var(--border-soft); padding-top:10px; display:flex; flex-direction:column; gap:4px;}
+  .avc-sub .sub-label{font-size:11px; color:var(--text-faint);}
+  .avc-verline{display:flex; align-items:center; justify-content:space-between; gap:8px;}
+  .avc-verline .mono{font-family:var(--font-mono); font-size:12px; color:var(--text-dim);}
+  .avc-note{font-size:12px; color:var(--text-faint); line-height:1.5; cursor:help;}
+  .avc-note.ok{color:var(--text-dim);}
+  .avc-dir{font-family:var(--font-mono); font-size:12px; color:var(--text-faint);}
   .avc-meta{font-size:11px; color:var(--text-faint); font-family:var(--font-mono);}
-  .avc-actions{display:flex; justify-content:flex-end; padding-top:6px; border-top:1px solid var(--border-soft);}
-  .avc-ready{font-size:11.5px; color:var(--text-faint);}
+  .avc-actions{display:flex; justify-content:flex-end;}
 
   /* ---------- Toast ---------- */
   .toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--text); color:#fff; padding:11px 18px; border-radius:var(--radius-sm); font-size:13px; opacity:0; pointer-events:none; transition:.2s; z-index:200; display:flex; align-items:center; gap:8px; box-shadow:var(--shadow-md); max-width:70vw;}
@@ -405,7 +408,7 @@
       <!-- ===== Dashboard ===== -->
       <section class="view active" id="view-dashboard">
         <div class="stat-grid">
-          <div class="stat-card"><div class="num accent" id="stat-agents">0</div><div class="lbl">已安装 Harness</div></div>
+          <div class="stat-card"><div class="num accent" id="stat-agents">0</div><div class="lbl">已配置 Harness</div></div>
           <div class="stat-card"><div class="num" id="stat-mcp">0</div><div class="lbl">MCP 服务总数</div></div>
           <div class="stat-card"><div class="num" id="stat-skill">0</div><div class="lbl">已安装 Skills</div></div>
           <div class="stat-card"><div class="num" id="stat-prompt">0</div><div class="lbl">已保存提示词</div></div>
@@ -413,7 +416,7 @@
         <div class="dash-section">
           <div class="dash-head">
             <h4>Harness 概览</h4>
-            <button class="btn btn-ghost btn-sm" id="btn-dash-refresh">⟳ 刷新版本</button>
+            <button class="btn btn-ghost btn-sm" id="btn-dash-refresh">⟳ 刷新状态</button>
           </div>
           <div class="agent-grid-mini" id="dash-agent-grid"></div>
         </div>
@@ -894,18 +897,27 @@ const AGENTS = [
 ];
 function AGENT_BY(id){ return AGENTS.find(a=>a.id===id); }
 
-/* ---- Dashboard Harness 概览：版本探测结果 mock（对齐产品 getAgentVersions：
- * 本地 --version 探测 + npm registry latest；未安装/可更新/最新 状态示意） ---- */
-const AGENT_VERSIONS = [
-  {agentId:'dsh',      version:'2.3.1',   latestVersion:'2.3.1',   error:null,                       installed:true},
-  {agentId:'opencode', version:'0.18.4',  latestVersion:'0.19.1',  error:null,                       installed:true},
-  {agentId:'zcode',    version:null,      latestVersion:null,     error:null,                        installed:true},
-  {agentId:'codex',    version:'0.51.0',  latestVersion:'0.51.0',  error:null,                       installed:true},
-  {agentId:'claude',   version:null,      latestVersion:'2.0.28',  error:'claude 未安装或不在 PATH 中', installed:false},
-  {agentId:'grok',     version:'2.2.10',  latestVersion:'2.2.13',  error:null,                       installed:true},
-  {agentId:'gemini',   version:'0.9.3',   latestVersion:'0.9.3',   error:null,                       installed:true},
-  {agentId:'hermes',   version:null,      latestVersion:'0.6.0',   error:'hermes 未安装或不在 PATH 中', installed:false},
+/* ---- Dashboard Harness 概览：状态 mock（对齐产品新模型：
+ * 主状态 = 配置根目录 AND MCP 落点文件存在性（本地同步检测，见 specs/2026-09-05-harness-status-detection-design.md 4.1）；
+ * CLI 版本（--version + npm latest）为次要信息通道，探测失败不影响主状态） ---- */
+const AGENT_STATUS = [
+  {agentId:'dsh',      configDetected:true,  configPath:'~/.dsh',              cli:{version:'2.3.1',  latestVersion:'2.3.1',  error:null, checkedAt:Date.now()}},
+  {agentId:'opencode', configDetected:true,  configPath:'~/.config/opencode',  cli:{version:'0.18.4', latestVersion:'0.19.1',  error:null, checkedAt:Date.now()}},
+  {agentId:'zcode',    configDetected:true,  configPath:'~/.zcode',            cli:null},
+  {agentId:'codex',    configDetected:true,  configPath:'~/.codex',            cli:{version:'0.51.0', latestVersion:'0.51.0',  error:null, checkedAt:Date.now()}},
+  {agentId:'claude',   configDetected:true,  configPath:'~/.claude.json',      cli:{version:null,     latestVersion:'2.0.28',  error:'claude 未安装或不在 PATH 中', checkedAt:Date.now()}},
+  {agentId:'grok',     configDetected:true,  configPath:'~/.grok',            cli:{version:'2.2.10', latestVersion:'2.2.13',  error:null, checkedAt:Date.now()}},
+  {agentId:'gemini',   configDetected:true,  configPath:'~/.gemini',          cli:{version:'0.9.3',  latestVersion:'0.9.3',   error:null, checkedAt:Date.now()}},
+  {agentId:'hermes',   configDetected:false, configPath:'~/.hermes',           cli:null},
 ];
+
+/* ---- 「查看安装方式 / 查看安装选项」打开的官网链接（与产品 AGENT_TOOL_META 同源维护） ---- */
+const AGENT_DOCS_URL = {
+  dsh:'https://github.com/deepseek-ai/deepseek-harness', opencode:'https://opencode.ai/docs',
+  zcode:'https://zcode.z.ai/docs/install', codex:'https://github.com/openai/codex',
+  claude:'https://code.claude.com/docs', grok:'https://docs.x.ai/build/overview',
+  gemini:'https://github.com/google-gemini/gemini-cli', hermes:'https://github.com/NousResearch/hermes-agent'
+};
 
 /* ---- Skills 部署目标：8 harness + Agent Skills 共享目录（共享置顶，仅 Skills 视图使用） ---- */
 const SHARED_TARGET = { id:'shared', name:'共享目录(~/.agents/skills)', short:'共享目录', skillsDir:'~/.agents/skills' };
@@ -1148,61 +1160,97 @@ function isUpdateAvailable(current, latest){
   return current !== latest;
 }
 
-/** 卡片状态徽标：未安装 / 可更新 / 最新 */
+/** (i) 提示文案：CLI 版本信息的适用范围说明（spec 6.4） */
+const CLI_INFO_TOOLTIP = '此信息通过本地命令行检测获得，仅适用于通过 CLI 安装的场景；如果你通过插件或桌面客户端使用，该信息不可用，但不影响 MCP / Skills / 提示词的管理功能。';
+
+/** 卡片主徽标：仅反映配置检测结果（已配置 / 未配置 / 加载中） */
 function statusBadge(v){
   if(!v) return `<span class="avc-badge loading">…</span>`;
-  if(!v.installed) return `<span class="avc-badge warn">未安装</span>`;
-  if(!v.version && !v.latestVersion) return `<span class="avc-badge ok">✓ 已安装</span>`;
-  return isUpdateAvailable(v.version, v.latestVersion)
-    ? `<span class="avc-badge upd">可更新</span>`
-    : `<span class="avc-badge ok">✓ 最新</span>`;
+  return v.configDetected
+    ? `<span class="avc-badge ok">已配置</span>`
+    : `<span class="avc-badge off">未配置</span>`;
 }
 
-/** 动作区：未安装→安装；可更新→更新；最新→就绪文案 */
-function actionButton(agentId, v){
-  if(!v) return `<span class="avc-ready">探测中…</span>`;
-  if(!v.installed) return `<button class="btn btn-ghost btn-sm" data-agent-action="${agentId}" data-action="install">安装</button>`;
-  if(!v.version && !v.latestVersion) return `<span class="avc-ready">✓ 已安装</span>`;
-  if(isUpdateAvailable(v.version, v.latestVersion)) return `<button class="btn btn-primary btn-sm" data-agent-action="${agentId}" data-action="update">更新</button>`;
-  return `<span class="avc-ready">✓ 已是最新</span>`;
+/** 次要信息区：未配置→配置目录提示；已配置→CLI 版本（可更新 / 已最新 / 未检测到） */
+function secondaryInfo(v){
+  if(!v) return `<div class="avc-sub"><div class="sub-label">CLI 版本</div><span>…</span></div>`;
+  if(!v.configDetected){
+    return `<div class="avc-sub">
+      <div class="sub-label">配置目录</div>
+      <div class="avc-dir" title="${v.configPath}">${v.configPath} 未找到</div>
+    </div>`;
+  }
+  if(!v.cli || !v.cli.version){
+    return `<div class="avc-sub">
+      <div class="sub-label">CLI 版本</div>
+      <div class="avc-note" title="${CLI_INFO_TOOLTIP}">ⓘ 未检测到本地 CLI，可能通过 IDE 插件或桌面客户端使用</div>
+    </div>`;
+  }
+  if(v.cli.latestVersion && isUpdateAvailable(v.cli.version, v.cli.latestVersion)){
+    return `<div class="avc-sub">
+      <div class="sub-label">CLI 版本</div>
+      <div class="avc-verline">
+        <span class="mono">${v.cli.version} → ${v.cli.latestVersion}</span>
+        <span class="avc-badge upd">可更新</span>
+      </div>
+    </div>`;
+  }
+  if(v.cli.latestVersion){
+    return `<div class="avc-sub">
+      <div class="sub-label">CLI 版本</div>
+      <div class="avc-note ok">已是最新 CLI 版本 v${v.cli.version}</div>
+    </div>`;
+  }
+  return `<div class="avc-sub">
+    <div class="sub-label">CLI 版本</div>
+    <div class="avc-note" title="${v.cli.error || 'npm registry 请求失败，最新版本未知'}">${v.cli.version}（最新版本未知）</div>
+  </div>`;
+}
+
+/** 操作区：未配置→查看安装选项；未检测到 CLI→查看安装方式；可更新→更新 CLI；已最新→无按钮 */
+function actionArea(agentId, v){
+  if(!v) return `<button class="btn btn-ghost btn-sm" disabled>…</button>`;
+  if(!v.configDetected) return `<button class="btn btn-primary btn-sm" data-agent-action="${agentId}" data-action="docs">查看安装选项</button>`;
+  if(!v.cli || !v.cli.version) return `<button class="btn btn-ghost btn-sm" data-agent-action="${agentId}" data-action="docs">查看安装方式 ↗</button>`;
+  if(v.cli.latestVersion && isUpdateAvailable(v.cli.version, v.cli.latestVersion)){
+    return `<button class="btn btn-primary btn-sm" data-agent-action="${agentId}" data-action="update">更新 CLI</button>`;
+  }
+  return ``;
 }
 
 function renderDashboard(){
-  // 第一个统计卡「已安装 Harness」= 探测到版本的 agent 数
-  $('stat-agents').textContent = AGENT_VERSIONS.filter(v=>v.installed).length;
+  // 第一个统计卡「已配置 Harness」= 配置检测判定存在的 agent 数（本地同步检测，不依赖 CLI 探测/网络）
+  $('stat-agents').textContent = AGENT_STATUS.filter(s=>s.configDetected).length;
   $('stat-mcp').textContent = MCP_ITEMS.length;
   $('stat-skill').textContent = SKILLS_INSTALLED.length;
   $('stat-prompt').textContent = AGENTS.reduce((n,a)=> n + PROMPTS[a.id].length, 0);
 
   $('dash-agent-grid').innerHTML = AGENTS.map(a=>{
-    const v = AGENT_VERSIONS.find(x=>x.agentId===a.id) || null;
+    const v = AGENT_STATUS.find(s=>s.agentId===a.id) || null;
     const mcp = MCP_ITEMS.filter(i=>i.apps[a.id]).length;
     const skill = SKILLS_INSTALLED.filter(i=>i.apps[a.id]).length;
     const prompt = PROMPTS[a.id].length;
-    const current = (v && v.version) ? v.version : (v && v.error) ? '未安装' : '—';
-    const latest = (v && v.latestVersion) ? v.latestVersion : '未知';
     return `<div class="agent-ver-card">
       <div class="avc-head">
         ${icon(a.id, 24, a.name)}
         <div class="avc-name">${a.name}</div>
         ${statusBadge(v)}
       </div>
-      <div class="avc-row"><span>当前版本</span><span class="mono" title="${v && v.error ? v.error : ''}">${current}</span></div>
-      <div class="avc-row"><span>最新版本</span><span class="mono">${latest}</span></div>
+      ${secondaryInfo(v)}
       <div class="avc-meta">MCP ${mcp} · Skills ${skill} · 提示词 ${prompt}</div>
-      <div class="avc-actions">${actionButton(a.id, v)}</div>
+      <div class="avc-actions">${actionArea(a.id, v)}</div>
     </div>`;
   }).join('');
 
-  // 安装 / 更新（原型示意：点击后 toast 提示）
+  // 更新 CLI / 查看安装方式 / 查看安装选项（原型示意：点击后 toast 提示）
   $('dash-agent-grid').querySelectorAll('[data-agent-action]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const agentId = btn.dataset.agentAction;
       const action = btn.dataset.action;
       const agent = AGENT_BY(agentId);
-      showToast(action==='install'
-        ? `（原型）已安装 ${agent.name} 并探测到最新版本`
-        : `（原型）已更新 ${agent.name} 到最新版本`);
+      showToast(action==='update'
+        ? `（原型）已更新 ${agent.name} CLI 到最新版本`
+        : `（原型）打开 ${agent.name} 官网：${AGENT_DOCS_URL[agentId]}`);
     });
   });
 }
@@ -2391,10 +2439,10 @@ $('search-input').addEventListener('input', e=>{
 /* ================= 初始化 ================= */
 renderSidebarAgents();
 renderDashboard();
-// 概览区「刷新版本」按钮：原型示意（产品侧为强制全量重探测 getAgentVersions）
+// 概览区「刷新状态」按钮：原型示意（产品侧先同步 detectAgentConfigs 刷新主状态区，再并发 probeCliVersions 异步回填 CLI 次要信息）
 $('btn-dash-refresh').addEventListener('click', ()=>{
   renderDashboard();
-  showToast('（原型）已刷新 Harness 版本信息');
+  showToast('（原型）已刷新 Harness 状态信息');
 });
 renderCountBar('mcp-countbar', MCP_ITEMS, 'mcp');
 renderCountBar('skills-countbar', SKILLS_INSTALLED, 'skill');
