@@ -6,6 +6,9 @@ export const AGENTS = [
   {id:'opencode', name:'OpenCode',          short:'OpenCode', dir:'~/.config/opencode',
    mcpPath:'~/.config/opencode/opencode.json', mcpFormat:'json',
    skillsDir:'~/.config/opencode/skills', promptFile:'~/.config/opencode/AGENTS.md'},
+  {id:'zcode',    name:'ZCode',              short:'ZCode',    dir:'~/.zcode',
+   mcpPath:'~/.zcode/cli/config.json', mcpFormat:'json',
+   skillsDir:'~/.zcode/skills', promptFile:'~/.zcode/AGENTS.md'},
   {id:'codex',    name:'Codex',             short:'Codex',    dir:'~/.codex',
    mcpPath:'~/.codex/config.toml', mcpFormat:'toml',
    skillsDir:'~/.codex/skills', promptFile:'~/.codex/AGENTS.md'},
@@ -24,7 +27,7 @@ export const AGENTS = [
 ];
 export function AGENT_BY(id){ return AGENTS.find(a=>a.id===id); }
 
-/* ---- Skills 部署目标：7 harness + Agent Skills 共享目录（共享置顶，仅 Skills 视图使用；
+/* ---- Skills 部署目标：8 harness + Agent Skills 共享目录（共享置顶，仅 Skills 视图使用；
  * MCP / 提示词 / Dashboard / 侧边栏仍只用 AGENTS ---- */
 export const SHARED_TARGET = { id:'shared', name:'共享目录(~/.agents/skills)', short:'共享目录', skillsDir:'~/.agents/skills' };
 export const SKILL_TARGETS = [SHARED_TARGET, ...AGENTS];

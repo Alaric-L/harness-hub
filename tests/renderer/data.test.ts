@@ -3,10 +3,10 @@ import { describe, expect, it } from 'vitest'
 import { AGENTS, SHARED_TARGET, SKILL_TARGETS, SKILL_TARGET_BY } from '../../src/renderer/data.js'
 
 describe('SKILL_TARGETS / SKILL_TARGET_BY', () => {
-  it('共享目录置顶，其后为 7 个 harness（顺序与 AGENTS 一致）', () => {
+  it('共享目录置顶，其后为 8 个 harness（顺序与 AGENTS 一致）', () => {
     expect(SKILL_TARGETS[0]).toBe(SHARED_TARGET)
     expect(SKILL_TARGETS.slice(1)).toEqual(AGENTS)
-    expect(SKILL_TARGETS).toHaveLength(8)
+    expect(SKILL_TARGETS).toHaveLength(9)
   })
 
   it('SHARED_TARGET 关键字段', () => {

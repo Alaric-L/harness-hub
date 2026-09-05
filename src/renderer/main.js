@@ -13,7 +13,7 @@ import './ui/settings.js';
 
 /* ================= 视图切换 ================= */
 const viewMeta = {
-  dashboard:{title:'Dashboard', sub:'7 个 harness 的配置总览', search:false},
+  dashboard:{title:'Dashboard', sub:'8 个 harness 的配置总览', search:false},
   mcp:{title:'MCP 服务', sub:'统一管理 MCP 配置，按 harness 一键开关并写入各自配置文件', search:false},
   skills:{title:'Skills', sub:'中央库安装与分发，支持仓库发现、更新与备份', search:true},
   prompts:{title:'提示词', sub:'当前指令文件与已保存提示词库分层管理', search:false},

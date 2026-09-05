@@ -16,6 +16,8 @@ function statusBadge(agentId, v){
   if(!state.agentVersions) return '';
   if(!v) return `<span class="avc-badge loading">…</span>`;
   if(!v.installed) return `<span class="avc-badge warn">未安装</span>`;
+  // 桌面应用型 harness（如 ZCode）：目录存在即已安装，无 CLI 版本可探
+  if(!v.version && !v.latestVersion) return `<span class="avc-badge ok">✓ 已安装</span>`;
   return isUpdateAvailable(v.version, v.latestVersion)
     ? `<span class="avc-badge upd">可更新</span>`
     : `<span class="avc-badge ok">✓ 最新</span>`;
@@ -29,6 +31,7 @@ function actionButton(agentId, v){
   if(!v.installed){
     return `<button class="btn btn-ghost btn-sm" data-agent-action="${agentId}" data-action="install">安装</button>`;
   }
+  if(!v.version && !v.latestVersion) return `<span class="avc-ready">✓ 已安装</span>`;
   if(isUpdateAvailable(v.version, v.latestVersion)){
     return `<button class="btn btn-primary btn-sm" data-agent-action="${agentId}" data-action="update">更新</button>`;
   }
